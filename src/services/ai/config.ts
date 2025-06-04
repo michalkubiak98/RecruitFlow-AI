@@ -1,76 +1,98 @@
 import OpenAI from 'openai';
 
+if (!import.meta.env.VITE_OPENAI_API_KEY) {
+  throw new Error('VITE_OPENAI_API_KEY is required');
+}
+
 export const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true
 });
 
-export const AI_FUNCTIONS = [
+export const AI_TOOLS = [
   {
-    name: "update_candidate",
-    description: "Update or create a candidate record from natural language",
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Candidate's name" },
-        location: { type: "string", description: "Candidate's location" },
-        salary: { type: "string", description: "Salary expectation" },
-        roles: { type: "string", description: "Roles they're interested in" },
-        drives: { type: "boolean", description: "Whether they can drive" },
-        stage: { type: "string", description: "Interview stage if mentioned" },
-        notes: { type: "string", description: "Any additional notes" },
-        status: { 
-          type: "string", 
-          enum: ["active", "blacklisted", "never_use_again"],
-          description: "Candidate status"
-        }
-      },
-      required: ["name"]
-    }
-  },
-  {
-    name: "update_spec_tracking",
-    description: "Track job spec sent to candidate",
-    parameters: {
-      type: "object",
-      properties: {
-        candidate_name: { type: "string", description: "Candidate's name" },
-        company: { type: "string", description: "Company name" },
-        role: { type: "string", description: "Job role" },
-        status: { 
-          type: "string", 
-          enum: ["reviewing", "wants_to_apply", "cv_sent", "interview_scheduled"],
-          description: "Current status"
+    type: "function" as const,
+    function: {
+      name: "manage_candidate",
+      description: "Create, update, or delete candidates. IMPORTANT: Distinguish between ROLE (job position they want) and INDUSTRY (sector: life science OR food science).",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            enum: ["create", "update", "delete", "bulk_create"],
+            description: "The action to perform"
+          },
+          candidate: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Candidate name" },
+              location: { type: "string", description: "Location/city" },
+              salary: { type: "string", description: "Salary expectation" },
+              roles: { type: "string", description: "Job position/role they want (e.g., developer, QA, marketing)" },
+              industry: { 
+                type: "string", 
+                enum: ["life science", "food science", ""],
+                description: "Industry sector they work in - ONLY 'life science' or 'food science'" 
+              },
+              drives: { type: "boolean", description: "Can drive a car" },
+              notes: { type: "string", description: "Additional notes about the candidate" }
+            }
+          },
+          candidates: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                location: { type: "string" },
+                salary: { type: "string" },
+                roles: { type: "string" },
+                industry: { type: "string", enum: ["life science", "food science", ""] },
+                drives: { type: "boolean" },
+                notes: { type: "string" }
+              }
+            },
+            description: "Array of candidates for bulk operations"
+          }
         },
-        interview_date: { type: "string", description: "Interview date if scheduled" },
-        interview_notes: { type: "string", description: "Interview notes" }
-      },
-      required: ["candidate_name", "company", "role"]
+        required: ["action"]
+      }
     }
   },
   {
-    name: "set_reminder",
-    description: "Set a reminder for follow-up",
-    parameters: {
-      type: "object",
-      properties: {
-        candidate_name: { type: "string", description: "Candidate's name" },
-        message: { type: "string", description: "Reminder message" },
-        days_from_now: { type: "number", description: "Days until reminder" }
-      },
-      required: ["candidate_name", "days_from_now"]
-    }
-  },
-  {
-    name: "add_note",
-    description: "Add a note to a candidate",
-    parameters: {
-      type: "object",
-      properties: {
-        candidate_name: { type: "string", description: "Candidate's name" },
-        note_content: { type: "string", description: "Content of the note" }
-      },
-      required: ["candidate_name", "note_content"]
+    type: "function" as const,
+    function: {
+      name: "search_candidates",
+      description: "Search and filter candidates based on natural language queries. Can find specific candidates by name or filter by criteria.",
+      parameters: {
+        type: "object",
+        properties: {
+          searchType: {
+            type: "string",
+            enum: ["specific", "filter"],
+            description: "Whether searching for a specific person or filtering by criteria"
+          },
+          name: {
+            type: "string",
+            description: "Specific candidate name to find"
+          },
+          criteria: {
+            type: "object",
+            properties: {
+              location: { type: "string", description: "Location to filter by (can be partial, e.g., 'Dublin area')" },
+              salaryMin: { type: "number", description: "Minimum salary in thousands" },
+              salaryMax: { type: "number", description: "Maximum salary in thousands" },
+              industry: { type: "string", enum: ["life science", "food science"], description: "Industry to filter by" },
+              role: { type: "string", description: "Role/position to filter by" },
+              drives: { type: "boolean", description: "Whether candidate can drive" },
+              notes: { type: "string", description: "Search in notes field" }
+            },
+            description: "Search criteria for filtering candidates"
+          }
+        },
+        required: ["searchType"]
+      }
     }
   }
 ];

@@ -1,72 +1,98 @@
-import React, { useState } from 'react';
-import { MessageSquare, Table, FileText } from 'lucide-react';
-import { clsx } from 'clsx';
+import { useState } from 'react';
+import { MessageSquare, Table, Users } from 'lucide-react';
+import { CandidatesTable } from '../Candidates/CandidatesTable';
+import { ChatInterface } from '../Chat/ChatInterface';
+import { CandidatesSidebar } from '../Candidates/CandidatesSidebar';
+import { useCandidates } from '../../hooks/useCandidates';
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-  sidebar: React.ReactNode;
-  activeView: 'chat' | 'table' | 'specs';
-  onViewChange: (view: 'chat' | 'table' | 'specs') => void;
-}
+type Tab = 'chat' | 'table';
 
-export function MainLayout({ children, sidebar, activeView, onViewChange }: MainLayoutProps) {
+export function MainLayout() {
+  const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const { refreshCandidates } = useCandidates();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleDataUpdate = () => {
+    console.log('🔄 Triggering data refresh...');
+    refreshCandidates();
+    // Force re-render of sidebar
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
-    <div className="h-screen flex bg-dark-100">
-      {/* Sidebar */}
-      <div className="w-80 border-r border-dark-300 flex flex-col">
-        {sidebar}
+    <div className="h-screen bg-dark-100 text-white flex flex-col overflow-hidden">
+      {/* Top Header with Tabs */}
+      <div className="bg-dark-200 border-b border-dark-300 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Rolodex.ai</h1>
+                <p className="text-xs text-gray-400">AI-Powered Candidate Management</p>
+              </div>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex items-center gap-2 bg-dark-100 rounded-lg p-1">
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                  activeTab === 'chat'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-300 hover:bg-dark-300 hover:text-white'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="font-medium">AI Chat</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('table')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                  activeTab === 'table'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-300 hover:bg-dark-300 hover:text-white'
+                }`}
+              >
+                <Table className="w-4 h-4" />
+                <span className="font-medium">Candidates Table</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span>System Online</span>
+          </div>
+        </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col">
-        {/* Tab bar */}
-        <div className="border-b border-dark-300 bg-dark-200">
-          <div className="flex space-x-1 p-2">
-            <button
-              onClick={() => onViewChange('chat')}
-              className={clsx(
-                'flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                activeView === 'chat'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-dark-300'
-              )}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Chat
-            </button>
-            
-            <button
-              onClick={() => onViewChange('table')}
-              className={clsx(
-                'flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                activeView === 'table'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-dark-300'
-              )}
-            >
-              <Table className="w-4 h-4 mr-2" />
-              Table
-            </button>
-            
-            <button
-              onClick={() => onViewChange('specs')}
-              className={clsx(
-                'flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                activeView === 'specs'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-dark-300'
-              )}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Spec Tracker
-            </button>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Content (4/5ths or full width) */}
+        <div className={`flex-1 ${activeTab === 'chat' ? 'w-4/5' : 'w-full'} overflow-hidden`}>
+          <div key={activeTab} className="h-full">
+            {activeTab === 'chat' ? (
+              <ChatInterface onUpdate={handleDataUpdate} />
+            ) : (
+              <CandidatesTable />
+            )}
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden">
-          {children}
-        </div>
+        {/* Right Sidebar (1/5th) - Only visible on Chat tab */}
+        {activeTab === 'chat' && (
+          <div
+            key={refreshKey}
+            className="w-1/5 bg-dark-200 border-l border-dark-300 overflow-hidden"
+          >
+            <CandidatesSidebar />
+          </div>
+        )}
       </div>
     </div>
   );

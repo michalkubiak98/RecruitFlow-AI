@@ -1,12 +1,11 @@
 import React from 'react';
-import { clsx } from 'clsx';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
 }
 
-export function Input({ label, error, className, ...props }: InputProps) {
+export function Input({ label, error, className = '', ...props }: InputProps) {
   return (
     <div className="space-y-1">
       {label && (
@@ -15,9 +14,7 @@ export function Input({ label, error, className, ...props }: InputProps) {
         </label>
       )}
       <input
-        className={clsx('input-field', className, {
-          'border-red-500': error
-        })}
+        className={`input-field ${error ? 'border-red-500' : ''} ${className}`}
         {...props}
       />
       {error && (

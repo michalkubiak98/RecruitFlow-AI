@@ -1,5 +1,4 @@
 import React from 'react';
-import { clsx } from 'clsx';
 
 interface CardProps {
   children: React.ReactNode;
@@ -7,16 +6,10 @@ interface CardProps {
   onClick?: () => void;
 }
 
-export function Card({ children, className, onClick }: CardProps) {
+export function Card({ children, className = '', onClick }: CardProps) {
   return (
     <div
-      className={clsx(
-        'card',
-        {
-          'cursor-pointer hover:bg-dark-300 transition-colors': onClick
-        },
-        className
-      )}
+      className={`card ${onClick ? 'cursor-pointer hover:bg-gray-800 transition-colors' : ''} ${className}`}
       onClick={onClick}
     >
       {children}

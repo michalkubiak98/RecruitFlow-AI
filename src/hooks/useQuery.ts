@@ -1,17 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { candidateService, specService } from '../services/database';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { tauriCandidateService } from '../services/database/tauri-commands';
 
 export function useCandidates() {
   return useQuery({
     queryKey: ['candidates'],
-    queryFn: candidateService.getAll
-  });
-}
-
-export function useSpecs() {
-  return useQuery({
-    queryKey: ['specs'],
-    queryFn: specService.getAll
+    queryFn: tauriCandidateService.getAll,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -19,7 +13,7 @@ export function useRefreshData() {
   const queryClient = useQueryClient();
   
   return () => {
+    console.log('🔄 Refreshing candidate data...');
     queryClient.invalidateQueries({ queryKey: ['candidates'] });
-    queryClient.invalidateQueries({ queryKey: ['specs'] });
   };
 }

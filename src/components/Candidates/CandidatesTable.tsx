@@ -1,0 +1,188 @@
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { useCandidates } from '../../hooks/useCandidates';
+import { CandidateCard } from './CandidateCard';
+import { CandidateModal } from './CandidateModal';
+import { SearchAndFilter } from '../Search/SearchAndFilter';
+import { Candidate, FilterState } from '../../types';
+import { exportToExcel, filterAndSortCandidates } from '../../utils/export';
+import toast from 'react-hot-toast';
+
+export function CandidatesTable() {
+  const { candidates, createCandidate, updateCandidate, deleteCandidate } = useCandidates();
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [filters, setFilters] = useState<FilterState>({
+    search: '',
+    industry: 'all',
+    sortBy: 'name',
+    sortOrder: 'asc'
+  });
+
+  // Apply filters and sorting
+  const filteredCandidates = filterAndSortCandidates(candidates, filters);
+
+  const handleEdit = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    setIsModalOpen(true);
+  };
+
+  const handleCardClick = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (updatedData: Partial<Candidate>) => {
+    if (!selectedCandidate) return;
+
+    try {
+      if (selectedCandidate.id === 0) {
+        await createCandidate(updatedData as Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'>);
+        toast.success('Candidate created successfully!');
+      } else {
+        await updateCandidate(selectedCandidate.id, updatedData);
+        toast.success('Candidate updated successfully!');
+      }
+      setIsModalOpen(false);
+      setSelectedCandidate(null);
+    } catch (error) {
+      toast.error('Failed to save candidate');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this candidate?')) {
+      try {
+        await deleteCandidate(id);
+        toast.success('Candidate deleted successfully!');
+      } catch (error) {
+        toast.error('Failed to delete candidate');
+      }
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      exportToExcel(filteredCandidates);
+      toast.success(`Downloaded ${filteredCandidates.length} candidates to your Downloads folder!`);
+    } catch (error) {
+      toast.error('Failed to export candidates');
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-dark-100">
+      {/* Header */}
+      <div className="p-6 border-b border-dark-300">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Candidates Table</h1>
+            <p className="text-gray-400">
+              {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''}
+              {filters.search || filters.industry !== 'all' ? 
+                ` found (${candidates.length} total)` : ''
+              }
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedCandidate({
+                id: 0,
+                name: '',
+                location: '',
+                salary: '',
+                roles: '',
+                industry: '',
+                drives: false,
+                notes: '',
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg 
+                     hover:bg-blue-700"
+          >
+            <Plus className="w-5 h-5" />
+            Add Candidate
+          </button>
+        </div>
+
+        {/* Search and Filter */}
+        <SearchAndFilter
+          filters={filters}
+          onFiltersChange={setFilters}
+          onExport={handleExport}
+          candidateCount={filteredCandidates.length}
+        />
+      </div>
+
+      {/* Candidate Cards Grid */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {filteredCandidates.length === 0 ? (
+          <div className="text-center mt-12">
+            <div className="max-w-md mx-auto">
+              <h3 className="text-xl font-semibold text-white mb-4">
+                {candidates.length === 0 ? '👥 No candidates yet' : '🔍 No candidates found'}
+              </h3>
+              <p className="text-gray-400 mb-6">
+                {candidates.length === 0 
+                  ? 'Add your first candidate to get started!'
+                  : 'Try adjusting your search or filters.'
+                }
+              </p>
+              {candidates.length === 0 && (
+                <button
+                  onClick={() => {
+                    setSelectedCandidate({
+                      id: 0,
+                      name: '',
+                      location: '',
+                      salary: '',
+                      roles: '',
+                      industry: '',
+                      drives: false,
+                      notes: '',
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    });
+                    setIsModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 mx-auto px-6 py-3 bg-blue-600 text-white 
+                           rounded-lg hover:bg-blue-700"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Your First Candidate
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredCandidates.map((candidate) => (
+              <div key={candidate.id} onClick={() => handleCardClick(candidate)} className="cursor-pointer">
+                <CandidateCard
+                  candidate={candidate}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      <CandidateModal
+        candidate={selectedCandidate}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedCandidate(null);
+        }}
+        onSave={handleSave}
+      />
+    </div>
+  );
+}

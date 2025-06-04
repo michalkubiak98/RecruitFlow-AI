@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    recruitflow_ai_lib::run()
+    rolodex_ai_lib::run()
 }
