@@ -1,5 +1,6 @@
-import { X, User, MapPin, DollarSign, Briefcase, Building, StickyNote, Car, Calendar } from 'lucide-react';
+import { X, User, Calendar, StickyNote } from 'lucide-react';
 import { Candidate } from '../../types';
+import { useSettings } from '../../hooks/useSettings';
 
 interface SearchResultsModalProps {
   isOpen: boolean;
@@ -18,14 +19,28 @@ export function SearchResultsModal({
   query, 
   criteria 
 }: SearchResultsModalProps) {
+  const { settings } = useSettings();
+
   if (!isOpen) return null;
 
-  const getIndustryColor = (industry: string) => {
-    switch (industry) {
-      case 'life science': return 'bg-blue-600/20 text-blue-300 border-blue-500/30';
-      case 'food science': return 'bg-green-600/20 text-green-300 border-green-500/30';
-      default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30';
+  const getFieldColor = (fieldId: string, value: any) => {
+    const fieldConfig = settings.fields.find(f => f.id === fieldId);
+    
+    if (fieldConfig?.type === 'dropdown') {
+      switch (value) {
+        case 'life science': return 'bg-blue-600/20 text-blue-300 border-blue-500/30';
+        case 'food science': return 'bg-green-600/20 text-green-300 border-green-500/30';
+        default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30';
+      }
     }
+    return 'bg-purple-600/20 text-purple-300 border-purple-500/30';
+  };
+
+  const renderFieldValue = (fieldConfig: any, value: any) => {
+    if (fieldConfig.type === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    return String(value || '');
   };
 
   return (
@@ -57,7 +72,7 @@ export function SearchResultsModal({
           {results.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-white mb-2">No candidates found</h3>
+              <h3 className="text-xl font-semibold text-white mb-2">No {settings.entityName.toLowerCase()} found</h3>
               <p className="text-gray-400">
                 Try adjusting your search criteria or check the spelling.
               </p>
@@ -65,7 +80,7 @@ export function SearchResultsModal({
           ) : (
             <div className="space-y-4">
               <div className="text-white mb-4">
-                Found <span className="font-semibold text-blue-400">{results.length}</span> candidate{results.length !== 1 ? 's' : ''}
+                Found <span className="font-semibold text-blue-400">{results.length}</span> {results.length !== 1 ? settings.entityName.toLowerCase() : settings.entityNameSingular.toLowerCase()}
               </div>
               
               <div className="grid gap-4">
@@ -99,47 +114,41 @@ export function SearchResultsModal({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Left Column */}
-                      <div className="space-y-3">
-                        {/* Role & Industry */}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="flex items-center gap-2 px-3 py-1 bg-purple-600/20 text-purple-300 
-                                         rounded-full text-sm border border-purple-500/30">
-                            <Briefcase className="w-3 h-3" />
-                            {candidate.roles}
-                          </div>
+                    {/* Dynamic Fields Display */}
+                    <div className="space-y-3">
+                      {/* Primary tags (dropdowns and key fields) */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {settings.fields.map((fieldConfig) => {
+                          const value = candidate.fields[fieldConfig.id];
+                          if (!value && fieldConfig.type !== 'boolean') return null;
                           
-                          {candidate.industry && (
-                            <div className={`px-3 py-1 rounded-full text-sm border ${getIndustryColor(candidate.industry)}`}>
-                              <Building className="w-3 h-3 inline mr-1" />
-                              {candidate.industry}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Location */}
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span>{candidate.location}</span>
-                        </div>
+                          if (fieldConfig.type === 'dropdown' || fieldConfig.id === 'roles') {
+                            return (
+                              <div key={fieldConfig.id} className={`px-3 py-1 rounded-full text-sm border ${getFieldColor(fieldConfig.id, value)}`}>
+                                {fieldConfig.label}: {renderFieldValue(fieldConfig, value)}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
                       </div>
 
-                      {/* Right Column */}
-                      <div className="space-y-3">
-                        {/* Salary */}
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <DollarSign className="w-4 h-4 text-gray-400" />
-                          <span className="font-semibold">{candidate.salary}</span>
-                        </div>
-
-                        {/* Driving */}
-                        {candidate.drives && (
-                          <div className="flex items-center gap-2 text-sm text-green-400">
-                            <Car className="w-4 h-4" />
-                            <span>Can drive</span>
-                          </div>
-                        )}
+                      {/* Other fields in grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {settings.fields.map((fieldConfig) => {
+                          const value = candidate.fields[fieldConfig.id];
+                          if (!value && fieldConfig.type !== 'boolean') return null;
+                          if (fieldConfig.type === 'dropdown' || fieldConfig.id === 'roles') return null;
+                          
+                          return (
+                            <div key={fieldConfig.id} className="flex items-center gap-2 text-gray-300 text-sm">
+                              <span className="text-gray-400 font-medium">{fieldConfig.label}:</span>
+                              <span className={fieldConfig.type === 'boolean' && value ? 'text-green-400' : ''}>
+                                {renderFieldValue(fieldConfig, value)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 

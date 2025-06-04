@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useCandidates } from '../../hooks/useCandidates';
+import { useSettings } from '../../hooks/useSettings';
 import { CandidateCard } from './CandidateCard';
 import { CandidateModal } from './CandidateModal';
 import { SearchAndFilter } from '../Search/SearchAndFilter';
@@ -10,18 +11,19 @@ import toast from 'react-hot-toast';
 
 export function CandidatesTable() {
   const { candidates, createCandidate, updateCandidate, deleteCandidate } = useCandidates();
+  const { settings } = useSettings();
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [filters, setFilters] = useState<FilterState>({
     search: '',
-    industry: 'all',
+    fieldFilters: {},
     sortBy: 'name',
     sortOrder: 'asc'
   });
 
   // Apply filters and sorting
-  const filteredCandidates = filterAndSortCandidates(candidates, filters);
+  const filteredCandidates = filterAndSortCandidates(candidates, filters, settings);
 
   const handleEdit = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
@@ -39,35 +41,35 @@ export function CandidatesTable() {
     try {
       if (selectedCandidate.id === 0) {
         await createCandidate(updatedData as Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'>);
-        toast.success('Candidate created successfully!');
+        toast.success(`${settings.entityNameSingular} created successfully!`);
       } else {
         await updateCandidate(selectedCandidate.id, updatedData);
-        toast.success('Candidate updated successfully!');
+        toast.success(`${settings.entityNameSingular} updated successfully!`);
       }
       setIsModalOpen(false);
       setSelectedCandidate(null);
     } catch (error) {
-      toast.error('Failed to save candidate');
+      toast.error(`Failed to save ${settings.entityNameSingular.toLowerCase()}`);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this candidate?')) {
+    if (window.confirm(`Are you sure you want to delete this ${settings.entityNameSingular.toLowerCase()}?`)) {
       try {
         await deleteCandidate(id);
-        toast.success('Candidate deleted successfully!');
+        toast.success(`${settings.entityNameSingular} deleted successfully!`);
       } catch (error) {
-        toast.error('Failed to delete candidate');
+        toast.error(`Failed to delete ${settings.entityNameSingular.toLowerCase()}`);
       }
     }
   };
 
   const handleExport = () => {
     try {
-      exportToExcel(filteredCandidates);
-      toast.success(`Downloaded ${filteredCandidates.length} candidates to your Downloads folder!`);
+      exportToExcel(filteredCandidates, settings);
+      toast.success(`Downloaded ${filteredCandidates.length} ${settings.entityName.toLowerCase()} to your Downloads folder!`);
     } catch (error) {
-      toast.error('Failed to export candidates');
+      toast.error(`Failed to export ${settings.entityName.toLowerCase()}`);
     }
   };
 
@@ -77,10 +79,10 @@ export function CandidatesTable() {
       <div className="p-6 border-b border-dark-300">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Candidates Table</h1>
+            <h1 className="text-3xl font-bold text-white">{settings.entityName} Table</h1>
             <p className="text-gray-400">
-              {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''}
-              {filters.search || filters.industry !== 'all' ? 
+              {filteredCandidates.length} {filteredCandidates.length !== 1 ? settings.entityName.toLowerCase() : settings.entityNameSingular.toLowerCase()}
+              {filters.search || Object.keys(filters.fieldFilters).length > 0 ? 
                 ` found (${candidates.length} total)` : ''
               }
             </p>
@@ -90,11 +92,7 @@ export function CandidatesTable() {
               setSelectedCandidate({
                 id: 0,
                 name: '',
-                location: '',
-                salary: '',
-                roles: '',
-                industry: '',
-                drives: false,
+                fields: {},
                 notes: '',
                 createdAt: new Date(),
                 updatedAt: new Date()
@@ -105,7 +103,7 @@ export function CandidatesTable() {
                      hover:bg-blue-700"
           >
             <Plus className="w-5 h-5" />
-            Add Candidate
+            Add {settings.entityNameSingular}
           </button>
         </div>
 
@@ -124,11 +122,11 @@ export function CandidatesTable() {
           <div className="text-center mt-12">
             <div className="max-w-md mx-auto">
               <h3 className="text-xl font-semibold text-white mb-4">
-                {candidates.length === 0 ? '👥 No candidates yet' : '🔍 No candidates found'}
+                {candidates.length === 0 ? `👥 No ${settings.entityName.toLowerCase()} yet` : '🔍 No matches found'}
               </h3>
               <p className="text-gray-400 mb-6">
                 {candidates.length === 0 
-                  ? 'Add your first candidate to get started!'
+                  ? `Add your first ${settings.entityNameSingular.toLowerCase()} to get started!`
                   : 'Try adjusting your search or filters.'
                 }
               </p>
@@ -138,11 +136,7 @@ export function CandidatesTable() {
                     setSelectedCandidate({
                       id: 0,
                       name: '',
-                      location: '',
-                      salary: '',
-                      roles: '',
-                      industry: '',
-                      drives: false,
+                      fields: {},
                       notes: '',
                       createdAt: new Date(),
                       updatedAt: new Date()
@@ -153,7 +147,7 @@ export function CandidatesTable() {
                            rounded-lg hover:bg-blue-700"
                 >
                   <Plus className="w-5 h-5" />
-                  Add Your First Candidate
+                  Add Your First {settings.entityNameSingular}
                 </button>
               )}
             </div>

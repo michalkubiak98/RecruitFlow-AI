@@ -1,23 +1,50 @@
 import { useState } from 'react';
-import { MessageSquare, Table, Users } from 'lucide-react';
+import { MessageSquare, Table, Users, Settings } from 'lucide-react';
 import { CandidatesTable } from '../Candidates/CandidatesTable';
 import { ChatInterface } from '../Chat/ChatInterface';
 import { CandidatesSidebar } from '../Candidates/CandidatesSidebar';
+import { SettingsModal } from '../Settings/SettingsModal';
 import { useCandidates } from '../../hooks/useCandidates';
+import { useSettings } from '../../hooks/useSettings';
+import toast from 'react-hot-toast';
 
 type Tab = 'chat' | 'table';
 
 export function MainLayout() {
   const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { refreshCandidates } = useCandidates();
+  const { settings, updateSettings, resetToDefault, isLoading: settingsLoading } = useSettings();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleDataUpdate = () => {
     console.log('🔄 Triggering data refresh...');
     refreshCandidates();
-    // Force re-render of sidebar
     setRefreshKey(prev => prev + 1);
   };
+
+  const handleSettingsSave = (newSettings: any) => {
+    updateSettings(newSettings);
+    toast.success('Settings saved successfully!');
+  };
+
+  const handleSettingsReset = () => {
+    if (window.confirm('Reset all settings to default? This cannot be undone.')) {
+      resetToDefault();
+      toast.success('Settings reset to default');
+    }
+  };
+
+  if (settingsLoading) {
+    return (
+      <div className="h-screen bg-dark-100 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-dark-100 text-white flex flex-col overflow-hidden">
@@ -31,8 +58,8 @@ export function MainLayout() {
                 <Users className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Rolodex.ai</h1>
-                <p className="text-xs text-gray-400">AI-Powered Candidate Management</p>
+                <h1 className="text-xl font-bold text-white">{settings.appName}</h1>
+                <p className="text-xs text-gray-400">AI-Powered {settings.entityName} Management</p>
               </div>
             </div>
 
@@ -58,22 +85,32 @@ export function MainLayout() {
                 }`}
               >
                 <Table className="w-4 h-4" />
-                <span className="font-medium">Candidates Table</span>
+                <span className="font-medium">{settings.entityName} Table</span>
               </button>
             </div>
           </div>
 
-          {/* Status */}
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>System Online</span>
+          {/* Status & Settings */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>System Online</span>
+            </div>
+            
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Content (4/5ths or full width) */}
+        {/* Main Content */}
         <div className={`flex-1 ${activeTab === 'chat' ? 'w-4/5' : 'w-full'} overflow-hidden`}>
           <div key={activeTab} className="h-full">
             {activeTab === 'chat' ? (
@@ -84,7 +121,7 @@ export function MainLayout() {
           </div>
         </div>
 
-        {/* Right Sidebar (1/5th) - Only visible on Chat tab */}
+        {/* Right Sidebar - Only visible on Chat tab */}
         {activeTab === 'chat' && (
           <div
             key={refreshKey}
@@ -94,6 +131,15 @@ export function MainLayout() {
           </div>
         )}
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentSettings={settings}
+        onSave={handleSettingsSave}
+        onReset={handleSettingsReset}
+      />
     </div>
   );
 }

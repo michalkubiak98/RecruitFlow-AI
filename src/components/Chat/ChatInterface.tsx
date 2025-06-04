@@ -13,6 +13,7 @@ import {
 } from '../../services/ai'
 import { SearchResultsModal } from '../Search/SearchResultsModal'
 import { useChat } from '../../hooks/useChat'
+import { useSettings } from '../../hooks/useSettings'
 import { Candidate } from '../../types'
 import { v4 as uuidv4 } from 'uuid'
 import toast from 'react-hot-toast'
@@ -36,6 +37,9 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, addMessage, clearChat, isLoading } = useChat()
+  const { settings } = useSettings() // Get fresh settings
+
+  console.log('🎯 ChatInterface using settings:', settings)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -61,7 +65,6 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
       timestamp: new Date(),
     }
 
-    // Add message immediately for real-time display
     addMessage(userMessage)
     console.log('💬 User message:', input)
 
@@ -120,9 +123,9 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
         return
       }
 
-      // Regular AI processing
-      console.log('🚀 Starting AI parsing...')
-      const result = await parseNaturalLanguage(currentInput)
+      // Regular AI processing with FRESH settings
+      console.log('🚀 Starting AI parsing with FRESH settings:', settings)
+      const result = await parseNaturalLanguage(currentInput, settings)
       console.log('📤 AI Result:', result)
 
       const systemMessage = {
@@ -142,7 +145,7 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
         setSearchCriteria((result as any).criteria || '')
         setIsSearchModalOpen(true)
         toast.success(
-          `Found ${(result as any).searchResults.length} candidates`
+          `Found ${(result as any).searchResults.length} ${settings.entityName.toLowerCase()}`
         )
       }
       // Handle delete confirmation
@@ -211,7 +214,7 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
         </div>
 
         <p className="text-gray-400 mb-4">
-          Add, update, delete, or search candidates using natural language
+          Add, update, delete, or search {settings.entityName.toLowerCase()} using natural language
         </p>
 
         {/* Chat Search */}
@@ -259,10 +262,10 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
           <div className="text-center mt-12">
             <div className="max-w-md mx-auto">
               <h3 className="text-xl font-semibold text-white mb-4">
-                👋 Welcome to Rolodex.ai AI!
+                👋 Welcome to {settings.appName}!
               </h3>
               <p className="text-gray-400 mb-6">
-                Manage and search candidates using natural language
+                Manage and search {settings.entityName.toLowerCase()} using natural language
               </p>
               <div className="bg-dark-200 rounded-lg p-4 text-left">
                 <p className="text-sm text-gray-300 mb-3">
@@ -271,21 +274,17 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
                 <div className="space-y-2 text-sm text-gray-400">
                   <div className="bg-dark-300 rounded p-2">
                     <Search className="w-3 h-3 inline mr-2" />
-                    "Show me Sarah Fowler"
+                    "Show me Jane Doe"
                   </div>
                   <div className="bg-dark-300 rounded p-2">
                     <Search className="w-3 h-3 inline mr-2" />
-                    "Find everyone from Dublin below 50k"
+                    "Find everyone from Dublin"
                   </div>
                   <div className="bg-dark-300 rounded p-2">
-                    <Search className="w-3 h-3 inline mr-2" />
-                    "Show developers in food science"
+                    "Add Mike developer Dublin 55k"
                   </div>
                   <div className="bg-dark-300 rounded p-2">
-                    "Add Mike QA specialist life science Dublin 55k"
-                  </div>
-                  <div className="bg-dark-300 rounded p-2">
-                    "Update Sarah's salary to 70k"
+                    "Update Jane's salary to 70k"
                   </div>
                 </div>
               </div>
@@ -307,7 +306,7 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
                       : message.content.includes('⚠️')
                         ? 'bg-red-900/20 border border-red-500/30 text-red-100'
                         : message.content.includes('Found') &&
-                            message.content.includes('candidate')
+                            message.content.includes(settings.entityNameSingular.toLowerCase())
                           ? 'bg-green-900/20 border border-green-500/30 text-green-100'
                           : 'bg-dark-200 text-gray-100 border border-dark-300'
                   }`}
@@ -335,7 +334,7 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
               placeholder={
                 pendingDeletion
                   ? 'Type "YES DELETE" to confirm or "no" to cancel...'
-                  : 'Try: "Show me developers from Cork" or "Add John developer life science Dublin 50k"'
+                  : `Try: "Show me developers from Cork" or "Add John developer Dublin 50k department engineering"`
               }
               className="flex-1 px-4 py-3 bg-dark-200 text-white rounded-lg 
                        border border-dark-300 focus:border-blue-500 focus:outline-none

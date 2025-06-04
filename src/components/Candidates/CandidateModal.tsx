@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Save, User, MapPin, DollarSign, Briefcase, Building, Car, StickyNote, ChevronDown } from 'lucide-react';
+import { X, Save, User, ChevronDown } from 'lucide-react';
 import { Candidate } from '../../types';
+import { useSettings } from '../../hooks/useSettings';
 
 interface CandidateModalProps {
   candidate: Candidate | null;
@@ -10,13 +11,10 @@ interface CandidateModalProps {
 }
 
 export function CandidateModal({ candidate, isOpen, onClose, onSave }: CandidateModalProps) {
+  const { settings } = useSettings();
   const [formData, setFormData] = useState({
     name: '',
-    location: '',
-    salary: '',
-    roles: '',
-    industry: '' as 'life science' | 'food science' | '',
-    drives: false,
+    fields: {} as Record<string, any>,
     notes: ''
   });
 
@@ -24,11 +22,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
     if (candidate) {
       setFormData({
         name: candidate.name,
-        location: candidate.location,
-        salary: candidate.salary,
-        roles: candidate.roles,
-        industry: candidate.industry,
-        drives: candidate.drives,
+        fields: candidate.fields || {},
         notes: candidate.notes || ''
       });
     }
@@ -39,14 +33,82 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
     onSave(formData);
   };
 
+  const updateField = (fieldId: string, value: any) => {
+    setFormData({
+      ...formData,
+      fields: {
+        ...formData.fields,
+        [fieldId]: value
+      }
+    });
+  };
+
+  const renderField = (fieldConfig: any) => {
+    const value = formData.fields[fieldConfig.id] || '';
+
+    switch (fieldConfig.type) {
+      case 'text':
+        return (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => updateField(fieldConfig.id, e.target.value)}
+            placeholder={fieldConfig.placeholder}
+            className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
+                     focus:border-blue-500 focus:outline-none placeholder-gray-500"
+            required={fieldConfig.required}
+          />
+        );
+
+      case 'boolean':
+        return (
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id={fieldConfig.id}
+              checked={Boolean(value)}
+              onChange={(e) => updateField(fieldConfig.id, e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-dark-100 border-dark-300 rounded 
+                       focus:ring-blue-500 focus:ring-2"
+            />
+            <label htmlFor={fieldConfig.id} className="text-sm text-gray-300">
+              {fieldConfig.label}
+            </label>
+          </div>
+        );
+
+      case 'dropdown':
+        return (
+          <div className="relative">
+            <select
+              value={value}
+              onChange={(e) => updateField(fieldConfig.id, e.target.value)}
+              className="w-full px-3 py-2 pr-10 bg-dark-100 text-white rounded-lg border border-dark-300 
+                       focus:border-blue-500 focus:outline-none appearance-none cursor-pointer"
+              required={fieldConfig.required}
+            >
+              <option value="">Select {fieldConfig.label}</option>
+              {(fieldConfig.options || []).map((option: string) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-dark-200 rounded-lg border border-dark-300 w-full max-w-md">
+      <div className="bg-dark-200 rounded-lg border border-dark-300 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-dark-300">
           <h2 className="text-xl font-semibold text-white">
-            {candidate?.id === 0 ? 'Add Candidate' : 'Edit Candidate'}
+            {candidate?.id === 0 ? `Add ${settings.entityNameSingular}` : `Edit ${settings.entityNameSingular}`}
           </h2>
           <button
             onClick={onClose}
@@ -57,7 +119,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Name */}
+          {/* Name Field */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               <User className="w-4 h-4 inline mr-2" />
@@ -73,104 +135,32 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
             />
           </div>
 
-          {/* Location */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <MapPin className="w-4 h-4 inline mr-2" />
-              Location
-            </label>
-            <input
-              type="text"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none placeholder-gray-500"
-            />
-          </div>
-
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Briefcase className="w-4 h-4 inline mr-2" />
-              Role/Position
-            </label>
-            <input
-              type="text"
-              value={formData.roles}
-              onChange={(e) => setFormData({ ...formData, roles: e.target.value })}
-              placeholder="e.g., Developer, QA Specialist, Marketing Manager"
-              className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none placeholder-gray-500"
-            />
-          </div>
-
-          {/* Industry */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Building className="w-4 h-4 inline mr-2" />
-              Industry
-            </label>
-            <div className="relative">
-              <select
-                value={formData.industry}
-                onChange={(e) => setFormData({ ...formData, industry: e.target.value as any })}
-                className="w-full px-3 py-2 pr-10 bg-dark-100 text-white rounded-lg border border-dark-300 
-                         focus:border-blue-500 focus:outline-none appearance-none cursor-pointer"
-              >
-                <option value="">Select Industry</option>
-                <option value="life science">Life Science</option>
-                <option value="food science">Food Science</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+          {/* Dynamic Fields */}
+          {settings.fields.map((fieldConfig) => (
+            <div key={fieldConfig.id}>
+              {fieldConfig.type !== 'boolean' && (
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {fieldConfig.label}
+                  {fieldConfig.required && <span className="text-red-400 ml-1">*</span>}
+                </label>
+              )}
+              {renderField(fieldConfig)}
             </div>
-          </div>
-
-          {/* Salary */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <DollarSign className="w-4 h-4 inline mr-2" />
-              Salary Expectation
-            </label>
-            <input
-              type="text"
-              value={formData.salary}
-              onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-              placeholder="e.g., 50k, 60-70k"
-              className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none placeholder-gray-500"
-            />
-          </div>
+          ))}
 
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              <StickyNote className="w-4 h-4 inline mr-2" />
               Notes
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Add any notes about this candidate..."
+              placeholder={`Add any notes about this ${settings.entityNameSingular.toLowerCase()}...`}
               rows={3}
               className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
                        focus:border-blue-500 focus:outline-none resize-none placeholder-gray-500"
             />
-          </div>
-
-          {/* Driving */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="drives"
-              checked={formData.drives}
-              onChange={(e) => setFormData({ ...formData, drives: e.target.checked })}
-              className="w-4 h-4 text-blue-600 bg-dark-100 border-dark-300 rounded 
-                       focus:ring-blue-500 focus:ring-2"
-            />
-            <label htmlFor="drives" className="text-sm text-gray-300 flex items-center gap-2">
-              <Car className="w-4 h-4" />
-              Can drive
-            </label>
           </div>
 
           <div className="flex gap-3 pt-4">

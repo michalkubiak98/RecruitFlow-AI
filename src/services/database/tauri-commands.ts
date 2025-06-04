@@ -2,7 +2,7 @@ import { Candidate } from '../../types';
 
 const CANDIDATES_STORAGE_KEY = 'rolodex-candidates-persistent';
 
-// Load initial data from storage
+// Load initial data from storage  
 const loadCandidatesFromStorage = (): Candidate[] => {
   try {
     const saved = localStorage.getItem(CANDIDATES_STORAGE_KEY);
@@ -10,6 +10,14 @@ const loadCandidatesFromStorage = (): Candidate[] => {
       const candidates = JSON.parse(saved);
       return candidates.map((c: any) => ({
         ...c,
+        // Migrate old format to new dynamic format
+        fields: c.fields || {
+          location: c.location || '',
+          salary: c.salary || '',
+          roles: c.roles || '',
+          industry: c.industry || '',
+          drives: c.drives || false
+        },
         createdAt: new Date(c.createdAt),
         updatedAt: new Date(c.updatedAt)
       }));
@@ -18,16 +26,18 @@ const loadCandidatesFromStorage = (): Candidate[] => {
     console.error('Failed to load candidates from storage:', error);
   }
   
-  // Default data if nothing in storage
+  // Default data in new dynamic format
   return [
     {
       id: 1,
-      name: "Sarah Fowler",
-      location: "Cork",
-      salary: "85k",
-      roles: "developer",
-      industry: "life science" as const,
-      drives: true,
+      name: "Jane Doe",
+      fields: {
+        location: "Cork",
+        salary: "85k",
+        roles: "developer",
+        industry: "life science",
+        drives: true
+      },
       notes: "Strong technical background, excellent Python skills",
       createdAt: new Date('2025-06-01'),
       updatedAt: new Date('2025-06-04')

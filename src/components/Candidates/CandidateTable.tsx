@@ -1,5 +1,6 @@
-import { User, MapPin, DollarSign, Briefcase, Car, Calendar } from 'lucide-react';
+import { User, Calendar } from 'lucide-react';
 import { Candidate } from '../../types';
+import { useSettings } from '../../hooks/useSettings';
 
 interface CandidateTableProps {
   candidates: Candidate[];
@@ -8,6 +9,8 @@ interface CandidateTableProps {
 }
 
 export function CandidateTable({ candidates, isLoading, onCandidateSelect }: CandidateTableProps) {
+  const { settings } = useSettings();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -20,14 +23,14 @@ export function CandidateTable({ candidates, isLoading, onCandidateSelect }: Can
     return (
       <div className="text-center py-12">
         <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-300 mb-2">No candidates yet</h3>
-        <p className="text-gray-400">Start by adding a candidate using the chat!</p>
+        <h3 className="text-xl font-semibold text-gray-300 mb-2">No {settings.entityName.toLowerCase()} yet</h3>
+        <p className="text-gray-400">Start by adding a {settings.entityNameSingular.toLowerCase()} using the chat!</p>
         <div className="mt-4 p-4 bg-dark-200 rounded-lg text-left max-w-md mx-auto">
           <p className="text-sm text-gray-300 mb-2">Try these examples:</p>
           <ul className="text-xs text-gray-400 space-y-1">
-            <li>• "Add Sarah from Cork wants 60k for developer roles"</li>
-            <li>• "Create candidate Mike in Galway for marketing 45k"</li>
-            <li>• "New candidate Lisa from Dublin, QA tester, 55k, can drive"</li>
+            <li>• "Add Sarah from Cork developer 60k"</li>
+            <li>• "Create Mike in Galway marketing 45k"</li>
+            <li>• "New person Lisa from Dublin QA 55k"</li>
           </ul>
         </div>
       </div>
@@ -37,7 +40,7 @@ export function CandidateTable({ candidates, isLoading, onCandidateSelect }: Can
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">All Candidates ({candidates.length})</h2>
+        <h2 className="text-2xl font-bold text-white">All {settings.entityName} ({candidates.length})</h2>
       </div>
 
       <div className="grid gap-4">
@@ -61,34 +64,21 @@ export function CandidateTable({ candidates, isLoading, onCandidateSelect }: Can
                   </div>
                 </div>
 
+                {/* Dynamic Fields Display */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {candidate.location && (
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <MapPin className="w-4 h-4 text-blue-400" />
-                      <span className="text-sm">{candidate.location}</span>
-                    </div>
-                  )}
-                  
-                  {candidate.salary && (
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <DollarSign className="w-4 h-4 text-green-400" />
-                      <span className="text-sm">{candidate.salary}</span>
-                    </div>
-                  )}
-                  
-                  {candidate.roles && (
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Briefcase className="w-4 h-4 text-purple-400" />
-                      <span className="text-sm">{candidate.roles}</span>
-                    </div>
-                  )}
-                  
-                  {candidate.drives && (
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Car className="w-4 h-4 text-orange-400" />
-                      <span className="text-sm">Can drive</span>
-                    </div>
-                  )}
+                  {settings.fields.map((fieldConfig) => {
+                    const value = candidate.fields[fieldConfig.id];
+                    if (!value && fieldConfig.type !== 'boolean') return null;
+                    
+                    return (
+                      <div key={fieldConfig.id} className="flex items-center gap-2 text-gray-300">
+                        <span className="text-sm font-medium">{fieldConfig.label}:</span>
+                        <span className="text-sm">
+                          {fieldConfig.type === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">

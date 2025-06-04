@@ -1,15 +1,18 @@
 import { Candidate } from '../types';
+import { AppSettings } from '../types/settings';
 import * as ExcelJS from 'exceljs';
 
-export function exportToExcel(candidates: Candidate[]) {
+export function exportToExcel(candidates: Candidate[], settings: AppSettings) {
   // Sort candidates by industry first, then by name
   const sortedCandidates = [...candidates].sort((a, b) => {
-    // First sort by industry
-    if (a.industry !== b.industry) {
-      if (a.industry === 'life science' && b.industry === 'food science') return -1;
-      if (a.industry === 'food science' && b.industry === 'life science') return 1;
-      if (a.industry && !b.industry) return -1;
-      if (!a.industry && b.industry) return 1;
+    // First sort by industry field if it exists
+    const aIndustry = a.fields.industry || '';
+    const bIndustry = b.fields.industry || '';
+    if (aIndustry !== bIndustry) {
+      if (aIndustry === 'life science' && bIndustry === 'food science') return -1;
+      if (aIndustry === 'food science' && bIndustry === 'life science') return 1;
+      if (aIndustry && !bIndustry) return -1;
+      if (!aIndustry && bIndustry) return 1;
     }
     // Then sort by name
     return a.name.localeCompare(b.name);
@@ -17,20 +20,22 @@ export function exportToExcel(candidates: Candidate[]) {
 
   // Create workbook and worksheet
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('RecruitFlow Candidates');
+  const worksheet = workbook.addWorksheet(`${settings.appName} ${settings.entityName}`);
 
   // Set up columns with proper widths and headers
-  worksheet.columns = [
+  const columns = [
     { header: 'Name', key: 'name', width: 20 },
-    { header: 'Industry', key: 'industry', width: 15 },
-    { header: 'Role/Position', key: 'roles', width: 25 },
-    { header: 'Location', key: 'location', width: 15 },
-    { header: 'Salary', key: 'salary', width: 12 },
-    { header: 'Can Drive', key: 'drives', width: 10 },
+    ...settings.fields.map(field => ({
+      header: field.label,
+      key: field.id,
+      width: field.type === 'boolean' ? 10 : 20
+    })),
     { header: 'Notes', key: 'notes', width: 40 },
     { header: 'Date Added', key: 'createdAt', width: 12 },
     { header: 'Last Updated', key: 'updatedAt', width: 12 }
   ];
+
+  worksheet.columns = columns;
 
   // Style the header row
   const headerRow = worksheet.getRow(1);
@@ -45,26 +50,34 @@ export function exportToExcel(candidates: Candidate[]) {
 
   // Add data rows with conditional formatting
   sortedCandidates.forEach((candidate) => {
-    const row = worksheet.addRow({
+    const rowData: any = {
       name: candidate.name,
-      industry: candidate.industry || 'Not specified',
-      roles: candidate.roles,
-      location: candidate.location,
-      salary: candidate.salary,
-      drives: candidate.drives ? 'Yes' : 'No',
       notes: candidate.notes || '',
       createdAt: new Date(candidate.createdAt).toLocaleDateString(),
       updatedAt: new Date(candidate.updatedAt).toLocaleDateString()
+    };
+
+    // Add dynamic field values
+    settings.fields.forEach(field => {
+      const value = candidate.fields[field.id];
+      if (field.type === 'boolean') {
+        rowData[field.id] = value ? 'Yes' : 'No';
+      } else {
+        rowData[field.id] = value || '';
+      }
     });
 
+    const row = worksheet.addRow(rowData);
+
     // Style based on industry
-    if (candidate.industry === 'life science') {
+    const industryValue = candidate.fields.industry;
+    if (industryValue === 'life science') {
       row.fill = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'EBF8FF' } // Light blue for life science
       };
-    } else if (candidate.industry === 'food science') {
+    } else if (industryValue === 'food science') {
       row.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -72,13 +85,17 @@ export function exportToExcel(candidates: Candidate[]) {
       };
     }
 
-    // Style the "Can Drive" column
-    const drivesCell = row.getCell('drives');
-    if (candidate.drives) {
-      drivesCell.font = { color: { argb: '059669' }, bold: true }; // Green for Yes
-    } else {
-      drivesCell.font = { color: { argb: 'DC2626' } }; // Red for No
-    }
+    // Style boolean fields
+    settings.fields.forEach((field, index) => {
+      if (field.type === 'boolean') {
+        const cell = row.getCell(index + 2); // +2 because name is first, then fields start
+        if (candidate.fields[field.id]) {
+          cell.font = { color: { argb: '059669' }, bold: true }; // Green for Yes/True
+        } else {
+          cell.font = { color: { argb: 'DC2626' } }; // Red for No/False
+        }
+      }
+    });
 
     // Add borders to all cells
     row.eachCell((cell) => {
@@ -95,7 +112,7 @@ export function exportToExcel(candidates: Candidate[]) {
   // Add auto filter
   worksheet.autoFilter = {
     from: 'A1',
-    to: `I${sortedCandidates.length + 1}`
+    to: `${String.fromCharCode(65 + columns.length - 1)}${sortedCandidates.length + 1}`
   };
 
   // Freeze the header row
@@ -105,18 +122,28 @@ export function exportToExcel(candidates: Candidate[]) {
 
   // Add summary information
   const summaryStartRow = sortedCandidates.length + 3;
-  const lifeScienceCount = sortedCandidates.filter(c => c.industry === 'life science').length;
-  const foodScienceCount = sortedCandidates.filter(c => c.industry === 'food science').length;
-  const otherCount = sortedCandidates.filter(c => !c.industry || (c.industry !== 'life science' && c.industry !== 'food science')).length;
-  const canDriveCount = sortedCandidates.filter(c => c.drives).length;
+  const industryField = settings.fields.find(f => f.id === 'industry');
+  
+  if (industryField && industryField.options) {
+    const lifeScienceCount = sortedCandidates.filter(c => c.fields.industry === 'life science').length;
+    const foodScienceCount = sortedCandidates.filter(c => c.fields.industry === 'food science').length;
+    const otherCount = sortedCandidates.filter(c => !c.fields.industry || (c.fields.industry !== 'life science' && c.fields.industry !== 'food science')).length;
 
-  worksheet.getCell(`A${summaryStartRow}`).value = 'SUMMARY';
-  worksheet.getCell(`A${summaryStartRow}`).font = { bold: true, size: 14 };
-  worksheet.getCell(`A${summaryStartRow + 1}`).value = `Total Candidates: ${sortedCandidates.length}`;
-  worksheet.getCell(`A${summaryStartRow + 2}`).value = `Life Science: ${lifeScienceCount}`;
-  worksheet.getCell(`A${summaryStartRow + 3}`).value = `Food Science: ${foodScienceCount}`;
-  worksheet.getCell(`A${summaryStartRow + 4}`).value = `Other/Unspecified: ${otherCount}`;
-  worksheet.getCell(`A${summaryStartRow + 5}`).value = `Can Drive: ${canDriveCount}`;
+    worksheet.getCell(`A${summaryStartRow}`).value = 'SUMMARY';
+    worksheet.getCell(`A${summaryStartRow}`).font = { bold: true, size: 14 };
+    worksheet.getCell(`A${summaryStartRow + 1}`).value = `Total ${settings.entityName}: ${sortedCandidates.length}`;
+    worksheet.getCell(`A${summaryStartRow + 2}`).value = `Life Science: ${lifeScienceCount}`;
+    worksheet.getCell(`A${summaryStartRow + 3}`).value = `Food Science: ${foodScienceCount}`;
+    worksheet.getCell(`A${summaryStartRow + 4}`).value = `Other/Unspecified: ${otherCount}`;
+  }
+
+  // Add boolean field summaries
+  settings.fields.forEach((field, index) => {
+    if (field.type === 'boolean') {
+      const trueCount = sortedCandidates.filter(c => c.fields[field.id]).length;
+      worksheet.getCell(`A${summaryStartRow + 5 + index}`).value = `${field.label}: ${trueCount}`;
+    }
+  });
 
   // Generate and download the file
   workbook.xlsx.writeBuffer().then((buffer) => {
@@ -126,7 +153,7 @@ export function exportToExcel(candidates: Candidate[]) {
     
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `recruitflow-candidates-${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.download = `${settings.appName.toLowerCase().replace(/\s+/g, '-')}-${settings.entityName.toLowerCase()}-${new Date().toISOString().split('T')[0]}.xlsx`;
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -135,7 +162,7 @@ export function exportToExcel(candidates: Candidate[]) {
   });
 }
 
-export function filterAndSortCandidates(candidates: Candidate[], filters: any): Candidate[] {
+export function filterAndSortCandidates(candidates: Candidate[], filters: any, settings: AppSettings): Candidate[] {
   let filtered = [...candidates];
 
   // Apply search filter
@@ -143,16 +170,19 @@ export function filterAndSortCandidates(candidates: Candidate[], filters: any): 
     const searchLower = filters.search.toLowerCase();
     filtered = filtered.filter(candidate =>
       candidate.name.toLowerCase().includes(searchLower) ||
-      candidate.roles.toLowerCase().includes(searchLower) ||
-      candidate.location.toLowerCase().includes(searchLower) ||
+      Object.values(candidate.fields).some(value => 
+        value && String(value).toLowerCase().includes(searchLower)
+      ) ||
       (candidate.notes && candidate.notes.toLowerCase().includes(searchLower))
     );
   }
 
-  // Apply industry filter
-  if (filters.industry !== 'all') {
-    filtered = filtered.filter(candidate => candidate.industry === filters.industry);
-  }
+  // Apply field filters
+  Object.entries(filters.fieldFilters).forEach(([fieldId, value]) => {
+    if (value && value !== 'all') {
+      filtered = filtered.filter(candidate => candidate.fields[fieldId] === value);
+    }
+  });
 
   // Apply sorting
   filtered.sort((a, b) => {
@@ -160,18 +190,25 @@ export function filterAndSortCandidates(candidates: Candidate[], filters: any): 
     let bValue: any;
 
     switch (filters.sortBy) {
-      case 'salary':
-        // Extract numbers from salary strings for proper sorting
-        aValue = parseInt(a.salary.replace(/[^\d]/g, '')) || 0;
-        bValue = parseInt(b.salary.replace(/[^\d]/g, '')) || 0;
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
         break;
       case 'createdAt':
         aValue = new Date(a.createdAt).getTime();
         bValue = new Date(b.createdAt).getTime();
         break;
-      default: // name
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
+      default:
+        // Dynamic field sorting
+        const fieldConfig = settings.fields.find(f => f.id === filters.sortBy);
+        if (fieldConfig?.type === 'text' && fieldConfig.id === 'salary') {
+          // Special handling for salary field
+          aValue = parseInt(String(a.fields[filters.sortBy] || '0').replace(/[^\d]/g, '')) || 0;
+          bValue = parseInt(String(b.fields[filters.sortBy] || '0').replace(/[^\d]/g, '')) || 0;
+        } else {
+          aValue = String(a.fields[filters.sortBy] || '').toLowerCase();
+          bValue = String(b.fields[filters.sortBy] || '').toLowerCase();
+        }
     }
 
     if (filters.sortOrder === 'asc') {

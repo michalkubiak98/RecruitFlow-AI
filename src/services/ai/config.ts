@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { AppSettings } from '../../types/settings';
 
 if (!import.meta.env.VITE_OPENAI_API_KEY) {
   throw new Error('VITE_OPENAI_API_KEY is required');
@@ -9,12 +10,12 @@ export const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-export const AI_TOOLS = [
+export const generateAITools = (settings: AppSettings) => [
   {
     type: "function" as const,
     function: {
       name: "manage_candidate",
-      description: "Create, update, or delete candidates. IMPORTANT: Distinguish between ROLE (job position they want) and INDUSTRY (sector: life science OR food science).",
+      description: `Create, update, or delete ${settings.entityName.toLowerCase()}. Handle all the configured fields dynamically.`,
       parameters: {
         type: "object",
         properties: {
@@ -26,17 +27,20 @@ export const AI_TOOLS = [
           candidate: {
             type: "object",
             properties: {
-              name: { type: "string", description: "Candidate name" },
-              location: { type: "string", description: "Location/city" },
-              salary: { type: "string", description: "Salary expectation" },
-              roles: { type: "string", description: "Job position/role they want (e.g., developer, QA, marketing)" },
-              industry: { 
-                type: "string", 
-                enum: ["life science", "food science", ""],
-                description: "Industry sector they work in - ONLY 'life science' or 'food science'" 
+              name: { type: "string", description: "Person's name" },
+              fields: {
+                type: "object",
+                description: "Dynamic fields based on current configuration",
+                properties: settings.fields.reduce((acc, field) => {
+                  acc[field.id] = {
+                    type: field.type === 'boolean' ? 'boolean' : 'string',
+                    description: field.description || field.label,
+                    ...(field.type === 'dropdown' && field.options ? { enum: field.options } : {})
+                  };
+                  return acc;
+                }, {} as Record<string, any>)
               },
-              drives: { type: "boolean", description: "Can drive a car" },
-              notes: { type: "string", description: "Additional notes about the candidate" }
+              notes: { type: "string", description: "Additional notes" }
             }
           },
           candidates: {
@@ -45,15 +49,20 @@ export const AI_TOOLS = [
               type: "object",
               properties: {
                 name: { type: "string" },
-                location: { type: "string" },
-                salary: { type: "string" },
-                roles: { type: "string" },
-                industry: { type: "string", enum: ["life science", "food science", ""] },
-                drives: { type: "boolean" },
+                fields: {
+                  type: "object",
+                  properties: settings.fields.reduce((acc, field) => {
+                    acc[field.id] = {
+                      type: field.type === 'boolean' ? 'boolean' : 'string',
+                      description: field.description || field.label
+                    };
+                    return acc;
+                  }, {} as Record<string, any>)
+                },
                 notes: { type: "string" }
               }
             },
-            description: "Array of candidates for bulk operations"
+            description: `Array of ${settings.entityName.toLowerCase()} for bulk operations`
           }
         },
         required: ["action"]
@@ -64,7 +73,7 @@ export const AI_TOOLS = [
     type: "function" as const,
     function: {
       name: "search_candidates",
-      description: "Search and filter candidates based on natural language queries. Can find specific candidates by name or filter by criteria.",
+      description: `Search and filter ${settings.entityName.toLowerCase()} based on natural language queries.`,
       parameters: {
         type: "object",
         properties: {
@@ -75,20 +84,28 @@ export const AI_TOOLS = [
           },
           name: {
             type: "string",
-            description: "Specific candidate name to find"
+            description: "Specific person name to find"
           },
           criteria: {
             type: "object",
-            properties: {
-              location: { type: "string", description: "Location to filter by (can be partial, e.g., 'Dublin area')" },
-              salaryMin: { type: "number", description: "Minimum salary in thousands" },
-              salaryMax: { type: "number", description: "Maximum salary in thousands" },
-              industry: { type: "string", enum: ["life science", "food science"], description: "Industry to filter by" },
-              role: { type: "string", description: "Role/position to filter by" },
-              drives: { type: "boolean", description: "Whether candidate can drive" },
-              notes: { type: "string", description: "Search in notes field" }
-            },
-            description: "Search criteria for filtering candidates"
+            properties: settings.fields.reduce((acc, field) => {
+              if (field.type === 'text') {
+                acc[field.id] = { 
+                  type: "string", 
+                  description: `Filter by ${field.label}. For multiple values use "value1 and value2" format.` 
+                };
+              } else if (field.type === 'boolean') {
+                acc[field.id] = { type: "boolean", description: `Filter by ${field.label}` };
+              } else if (field.type === 'dropdown' && field.options) {
+                acc[field.id] = { 
+                  type: "string", 
+                  enum: field.options, 
+                  description: `Filter by ${field.label}. For multiple values use "value1 and value2" format.` 
+                };
+              }
+              return acc;
+            }, {} as Record<string, any>),
+            description: `Search criteria for filtering ${settings.entityName.toLowerCase()}`
           }
         },
         required: ["searchType"]
@@ -96,3 +113,53 @@ export const AI_TOOLS = [
     }
   }
 ];
+
+export const generateSystemPrompt = (settings: AppSettings) => `
+You are a ${settings.entityName.toLowerCase()} management assistant for ${settings.appName}.
+
+FIELD CONFIGURATION:
+${settings.fields.map(field => {
+  let typeDesc: string = field.type;
+  if (field.type === 'dropdown' && field.options) {
+    typeDesc = `dropdown with options: ${field.options.join(', ')}`;
+  }
+  return `- ${field.label} (${field.id}): ${typeDesc}${field.required ? ' [REQUIRED]' : ''}${field.description ? ` - ${field.description}` : ''}`;
+}).join('\n')}
+
+ACTIONS:
+- CREATE: "add", "create", "new ${settings.entityNameSingular.toLowerCase()}", "hire"
+- UPDATE: "update", "change", "modify", "set", "edit"  
+- DELETE: "remove", "delete", "fire", "eliminate"
+- SEARCH: "show me", "find", "search", "who is", "${settings.entityName.toLowerCase()} from", "looking for"
+
+MULTIPLE VALUE SEARCH RULES:
+- For location searches like "from Cork and Dublin", use: location: "cork and dublin"
+- For dropdown searches like "life science and food science", use: industry: "life science and food science"  
+- For text fields with multiple values, use "value1 and value2" format
+- Examples:
+  * "Show people from Cork and Dublin" → criteria: {location: "cork and dublin"}
+  * "Find life science and food science candidates" → criteria: {industry: "life science and food science"}
+
+NAME MATCHING RULES:
+- For deletion, be VERY specific about names
+- If user says "Remove John" and there's both "John" and "John Smith", ask for clarification
+- Match the EXACT name preference when specified
+
+SEARCH EXAMPLES:
+- "Show me John Smith" → searchType: "specific", name: "John Smith"
+- "Find ${settings.entityName.toLowerCase()} from Dublin" → searchType: "filter", criteria: {location: "Dublin"}
+- "Show people from Cork and Dublin" → searchType: "filter", criteria: {location: "cork and dublin"}
+
+FIELD PARSING:
+${settings.fields.map(field => {
+  if (field.type === 'dropdown' && field.options) {
+    return `- ${field.label}: Must be one of: ${field.options.join(', ')} OR multiple values like "value1 and value2"`;
+  } else if (field.type === 'boolean') {
+    return `- ${field.label}: Parse from words like "yes/no", "true/false", "can/cannot"`;
+  }
+  return `- ${field.label}: Extract text value OR multiple values like "value1 and value2"`;
+}).join('\n')}
+
+For SEARCH queries, use search_candidates function.
+For management (add/update/delete), use manage_candidate function.
+`;

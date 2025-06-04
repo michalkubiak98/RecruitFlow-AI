@@ -1,22 +1,15 @@
 import { useState } from 'react'
-import {
-  MapPin,
-  DollarSign,
-  Briefcase,
-  Building,
-  StickyNote,
-  Car,
-} from 'lucide-react'
+import { StickyNote } from 'lucide-react'
 import { useCandidates } from '../../hooks/useCandidates'
+import { useSettings } from '../../hooks/useSettings'
 import { CandidateModal } from './CandidateModal'
 import { Candidate } from '../../types'
 import toast from 'react-hot-toast'
 
 export function CandidatesSidebar() {
   const { candidates, updateCandidate, isLoading } = useCandidates()
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(
-    null
-  )
+  const { settings } = useSettings()
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   console.log('🎯 CandidatesSidebar render:', {
@@ -37,32 +30,48 @@ export function CandidatesSidebar() {
       await updateCandidate(selectedCandidate.id, updatedData)
       setIsModalOpen(false)
       setSelectedCandidate(null)
-      toast.success('Candidate updated successfully!')
+      toast.success(`${settings.entityNameSingular} updated successfully!`)
     } catch (error) {
-      toast.error('Failed to update candidate')
+      toast.error(`Failed to update ${settings.entityNameSingular.toLowerCase()}`)
     }
   }
 
-  const getIndustryColor = (industry: string) => {
-    switch (industry) {
-      case 'life science':
-        return 'text-blue-400'
-      case 'food science':
-        return 'text-green-400'
-      default:
-        return 'text-gray-400'
+  const getFieldColor = (fieldId: string, value: any) => {
+    const fieldConfig = settings.fields.find(f => f.id === fieldId);
+    
+    if (fieldConfig?.type === 'dropdown') {
+      // Different colors for different dropdown values
+      switch (value) {
+        case 'life science': return 'text-blue-400';
+        case 'food science': return 'text-green-400';
+        default: return 'text-gray-400';
+      }
     }
+    
+    return 'text-gray-400';
+  }
+
+  const renderFieldValue = (fieldId: string, value: any) => {
+    const fieldConfig = settings.fields.find(f => f.id === fieldId);
+    
+    if (!fieldConfig) return null;
+    
+    if (fieldConfig.type === 'boolean') {
+      return value ? '✓' : '✗';
+    }
+    
+    return String(value || '');
   }
 
   if (isLoading) {
     return (
       <div className="h-full flex flex-col bg-dark-200">
         <div className="p-4 border-b border-dark-300">
-          <h2 className="text-lg font-semibold text-white">Candidates</h2>
+          <h2 className="text-lg font-semibold text-white">{settings.entityName}</h2>
           <p className="text-sm text-gray-400">Loading...</p>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-400">Loading candidates...</p>
+          <p className="text-gray-400">Loading {settings.entityName.toLowerCase()}...</p>
         </div>
       </div>
     )
@@ -72,7 +81,7 @@ export function CandidatesSidebar() {
     <div className="h-full flex flex-col bg-dark-200">
       {/* Header */}
       <div className="p-4 border-b border-dark-300">
-        <h2 className="text-lg font-semibold text-white">Candidates</h2>
+        <h2 className="text-lg font-semibold text-white">{settings.entityName}</h2>
         <p className="text-sm text-gray-400">{candidates.length} total</p>
       </div>
 
@@ -81,9 +90,9 @@ export function CandidatesSidebar() {
         {candidates.length === 0 ? (
           <div className="text-center mt-8 p-4">
             <div className="text-3xl mb-3">👥</div>
-            <p className="text-sm text-gray-400">No candidates yet</p>
+            <p className="text-sm text-gray-400">No {settings.entityName.toLowerCase()} yet</p>
             <p className="text-xs text-gray-500 mt-1">
-              Add candidates via AI chat
+              Add {settings.entityName.toLowerCase()} via AI chat
             </p>
           </div>
         ) : (
@@ -97,56 +106,41 @@ export function CandidatesSidebar() {
               >
                 {/* Name & Icons Row */}
                 <div className="flex items-center justify-between mb-2">
-                  <h3
-                    className="font-medium text-white text-sm hover:text-blue-300 
-                                 truncate flex-1 pr-2"
-                  >
+                  <h3 className="font-medium text-white text-sm hover:text-blue-300 
+                                 truncate flex-1 pr-2">
                     {candidate.name}
                   </h3>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {candidate.drives && (
-                      <Car className="w-3 h-3 text-green-400" />
-                    )}
                     {candidate.notes && (
                       <StickyNote className="w-3 h-3 text-yellow-400" />
                     )}
                   </div>
                 </div>
 
-                {/* Role */}
-                <div className="flex items-center gap-1 mb-2">
-                  <Briefcase className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                  <span className="text-xs text-gray-300 truncate">
-                    {candidate.roles}
-                  </span>
-                </div>
-
-                {/* Industry */}
-                {candidate.industry && (
-                  <div className="flex items-center gap-1 mb-2">
-                    <Building className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                    <span
-                      className={`text-xs ${getIndustryColor(candidate.industry)} truncate`}
-                    >
-                      {candidate.industry}
-                    </span>
-                  </div>
-                )}
-
-                {/* Location & Salary */}
+                {/* Dynamic Fields Display */}
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                    <span className="text-xs text-gray-400 truncate">
-                      {candidate.location}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                    <span className="text-xs text-gray-300 font-medium">
-                      {candidate.salary}
-                    </span>
-                  </div>
+                  {settings.fields.slice(0, 3).map((fieldConfig) => {
+                    const value = candidate.fields[fieldConfig.id];
+                    if (!value && fieldConfig.type !== 'boolean') return null;
+                    
+                    return (
+                      <div key={fieldConfig.id} className="flex items-center gap-1 text-xs">
+                        <span className="text-gray-500 min-w-0 truncate">
+                          {fieldConfig.label}:
+                        </span>
+                        <span className={`truncate ${getFieldColor(fieldConfig.id, value)}`}>
+                          {renderFieldValue(fieldConfig.id, value)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show count if more fields exist */}
+                  {settings.fields.length > 3 && (
+                    <div className="text-xs text-gray-500">
+                      +{settings.fields.length - 3} more fields
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
