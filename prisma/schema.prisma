@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  location    String?
+  salary      String?
+  roles       String?
+  drives      Boolean  @default(false)
+  cvPath      String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  notes       Note[]
+  specs       SpecTracking[]
+  reminders   Reminder[]
+}
+
+model SpecTracking {
+  id              Int       @id @default(autoincrement())
+  candidateId     Int
+  company         String
+  role            String
+  specSentDate    DateTime  @default(now())
+  status          String    @default("reviewing")
+  interviewDate   DateTime?
+  interviewNotes  String?
+  createdAt       DateTime  @default(now())
+  
+  candidate       Candidate @relation(fields: [candidateId], references: [id])
+  reminders       Reminder[]
+}
+
+model Note {
+  id          Int      @id @default(autoincrement())
+  candidateId Int
+  content     String
+  createdAt   DateTime @default(now())
+  
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+}
+
+model Reminder {
+  id              Int       @id @default(autoincrement())
+  candidateId     Int
+  specTrackingId  Int?
+  message         String
+  dueDate         DateTime
+  completed       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  
+  candidate       Candidate @relation(fields: [candidateId], references: [id])
+  specTracking    SpecTracking? @relation(fields: [specTrackingId], references: [id])
+}
