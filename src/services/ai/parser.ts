@@ -169,6 +169,36 @@ async function executeSearch(args: any, settings: any) {
   }
 }
 
+// Helper function to check if notes should be ignored
+const shouldIgnoreNotes = (notes: string | undefined): boolean => {
+  if (!notes) return true;
+  
+  const normalizedNotes = notes.toLowerCase().trim();
+  const ignorePatterns = [
+    'no notes',
+    'no note',
+    'none',
+    'n/a',
+    'na',
+    'no comments',
+    'no additional notes',
+    'no additional comments',
+    'nothing',
+    'no info',
+    'no information',
+    'skip notes',
+    'skip',
+    'empty',
+    ''
+  ];
+  
+  return ignorePatterns.some(pattern => 
+    normalizedNotes === pattern || 
+    normalizedNotes === pattern + '.' ||
+    normalizedNotes === pattern + 's'
+  );
+};
+
 async function executeManagement(args: any, settings: any) {
   const { action, candidate, candidates } = args
 
@@ -181,10 +211,14 @@ async function executeManagement(args: any, settings: any) {
         }
       }
       console.log('👤 Creating candidate:', candidate.name)
+      
+      // Clean up notes - don't save if user said "no notes" or similar
+      const cleanNotes = shouldIgnoreNotes(candidate.notes) ? '' : candidate.notes;
+      
       return await tauriCandidateService.create({
         ...candidate,
         fields: candidate.fields || {},
-        notes: candidate.notes || '',
+        notes: cleanNotes,
       })
 
     case 'bulk_create':
@@ -203,10 +237,13 @@ async function executeManagement(args: any, settings: any) {
       const results = []
       for (const cand of candidates) {
         if (cand.name) {
+          // Clean up notes for each candidate
+          const cleanNotes = shouldIgnoreNotes(cand.notes) ? '' : cand.notes;
+          
           const result = await tauriCandidateService.create({
             ...cand,
             fields: cand.fields || {},
-            notes: cand.notes || '',
+            notes: cleanNotes,
           })
           results.push(result)
         }
@@ -242,7 +279,16 @@ async function executeManagement(args: any, settings: any) {
       const updateData: any = {}
       if (candidate.fields)
         updateData.fields = { ...existingCandidate.fields, ...candidate.fields }
-      if (candidate.notes !== undefined) updateData.notes = candidate.notes
+      
+      // Handle notes updates - only update if notes are meaningful
+      if (candidate.notes !== undefined) {
+        if (shouldIgnoreNotes(candidate.notes)) {
+          // Don't change existing notes if user said "no notes"
+          updateData.notes = existingCandidate.notes;
+        } else {
+          updateData.notes = candidate.notes;
+        }
+      }
 
       return await tauriCandidateService.update(
         existingCandidate.id,

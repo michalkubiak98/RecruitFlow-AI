@@ -5,10 +5,26 @@ import { tauriCandidateService } from '../services/database/tauri-commands'
 // Global state to maintain consistency across components
 let globalCandidates: Candidate[] = []
 let isInitialized = false
+let refreshCallbacks: (() => void)[] = []
 
 export function useCandidates() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Register refresh callback
+  useEffect(() => {
+    const refreshCallback = () => setCandidates([...globalCandidates])
+    refreshCallbacks.push(refreshCallback)
+    
+    return () => {
+      refreshCallbacks = refreshCallbacks.filter(cb => cb !== refreshCallback)
+    }
+  }, [])
+
+  // Trigger all refresh callbacks
+  const triggerGlobalRefresh = useCallback(() => {
+    refreshCallbacks.forEach(callback => callback())
+  }, [])
 
   // Load candidates on first mount
   const loadCandidates = useCallback(async () => {
@@ -41,11 +57,12 @@ export function useCandidates() {
       const data = await tauriCandidateService.getAll()
       globalCandidates = data
       setCandidates([...data]) // Force re-render with new array
+      triggerGlobalRefresh() // Update all other components
       console.log('✅ Refreshed, now have', data.length, 'candidates')
     } catch (error) {
       console.error('Failed to refresh candidates:', error)
     }
-  }, [])
+  }, [triggerGlobalRefresh])
 
   // Create candidate
   const createCandidate = useCallback(

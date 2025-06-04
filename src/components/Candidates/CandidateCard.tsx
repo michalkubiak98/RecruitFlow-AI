@@ -6,12 +6,22 @@ import { useSettings } from '../../hooks/useSettings';
 interface CandidateCardProps {
   candidate: Candidate;
   onEdit: (candidate: Candidate) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number, event: React.MouseEvent) => void;
 }
 
 export function CandidateCard({ candidate, onEdit, onDelete }: CandidateCardProps) {
   const [showNotes, setShowNotes] = useState(false);
   const { settings } = useSettings();
+
+  const handleEditClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    onEdit(candidate);
+  };
+
+  const handleDeleteClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    onDelete(candidate.id, event);
+  };
 
   const getFieldColor = (fieldId: string, value: any) => {
     const fieldConfig = settings.fields.find(f => f.id === fieldId);
@@ -44,7 +54,7 @@ export function CandidateCard({ candidate, onEdit, onDelete }: CandidateCardProp
   };
 
   return (
-    <div className="bg-dark-200 rounded-lg border border-dark-300 p-6 hover:border-blue-500/50 group">
+    <div className="bg-dark-200 rounded-lg border border-dark-300 p-6 hover:border-blue-500/50 group transition-colors">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
@@ -63,6 +73,7 @@ export function CandidateCard({ candidate, onEdit, onDelete }: CandidateCardProp
                 onMouseEnter={() => setShowNotes(true)}
                 onMouseLeave={() => setShowNotes(false)}
                 className="p-1.5 text-yellow-400 hover:bg-yellow-400/20 rounded"
+                onClick={(e) => e.stopPropagation()}
               >
                 <StickyNote className="w-4 h-4" />
               </button>
@@ -78,16 +89,16 @@ export function CandidateCard({ candidate, onEdit, onDelete }: CandidateCardProp
           
           {/* Action Buttons */}
           <button
-            onClick={() => onEdit(candidate)}
+            onClick={handleEditClick}
             className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-400/20 
-                     rounded opacity-0 group-hover:opacity-100"
+                     rounded opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
-            onClick={() => onDelete(candidate.id)}
+            onClick={handleDeleteClick}
             className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-400/20 
-                     rounded opacity-0 group-hover:opacity-100"
+                     rounded opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <Trash2 className="w-4 h-4" />
           </button>

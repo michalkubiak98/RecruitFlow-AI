@@ -4,6 +4,7 @@ import { useCandidates } from '../../hooks/useCandidates';
 import { useSettings } from '../../hooks/useSettings';
 import { CandidateCard } from './CandidateCard';
 import { CandidateModal } from './CandidateModal';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { SearchAndFilter } from '../Search/SearchAndFilter';
 import { Candidate, FilterState } from '../../types';
 import { exportToExcel, filterAndSortCandidates } from '../../utils/export';
@@ -14,6 +15,9 @@ export function CandidatesTable() {
   const { settings } = useSettings();
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [candidateToDelete, setCandidateToDelete] = useState<Candidate | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -35,6 +39,33 @@ export function CandidatesTable() {
     setIsModalOpen(true);
   };
 
+  const handleDeleteClick = (candidate: Candidate, event: React.MouseEvent) => {
+    // Prevent event bubbling to avoid opening the card modal
+    event.stopPropagation();
+    setCandidateToDelete(candidate);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!candidateToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteCandidate(candidateToDelete.id);
+      if (result.success) {
+        toast.success(`${settings.entityNameSingular} deleted successfully!`);
+        setIsDeleteModalOpen(false);
+        setCandidateToDelete(null);
+      } else {
+        toast.error(result.message || `Failed to delete ${settings.entityNameSingular.toLowerCase()}`);
+      }
+    } catch (error) {
+      toast.error(`Failed to delete ${settings.entityNameSingular.toLowerCase()}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleSave = async (updatedData: Partial<Candidate>) => {
     if (!selectedCandidate) return;
 
@@ -50,17 +81,6 @@ export function CandidatesTable() {
       setSelectedCandidate(null);
     } catch (error) {
       toast.error(`Failed to save ${settings.entityNameSingular.toLowerCase()}`);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (window.confirm(`Are you sure you want to delete this ${settings.entityNameSingular.toLowerCase()}?`)) {
-      try {
-        await deleteCandidate(id);
-        toast.success(`${settings.entityNameSingular} deleted successfully!`);
-      } catch (error) {
-        toast.error(`Failed to delete ${settings.entityNameSingular.toLowerCase()}`);
-      }
     }
   };
 
@@ -116,8 +136,8 @@ export function CandidatesTable() {
         />
       </div>
 
-      {/* Candidate Cards Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      {/* Candidate Cards - Full Width with Padding */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
         {filteredCandidates.length === 0 ? (
           <div className="text-center mt-12">
             <div className="max-w-md mx-auto">
@@ -153,21 +173,29 @@ export function CandidatesTable() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredCandidates.map((candidate) => (
-              <div key={candidate.id} onClick={() => handleCardClick(candidate)} className="cursor-pointer">
-                <CandidateCard
-                  candidate={candidate}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </div>
-            ))}
+          <div className="max-w-7xl mx-auto">
+            {/* Single column on mobile, 2 columns on tablet, 3 on desktop, but wider cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+              {filteredCandidates.map((candidate) => (
+                <div key={candidate.id} onClick={() => handleCardClick(candidate)} className="cursor-pointer">
+                  <CandidateCard
+                    candidate={candidate}
+                    onEdit={handleEdit}
+                    onDelete={(id, event) => {
+                      const candidate = filteredCandidates.find(c => c.id === id);
+                      if (candidate) {
+                        handleDeleteClick(candidate, event);
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* Edit Modal */}
       <CandidateModal
         candidate={selectedCandidate}
         isOpen={isModalOpen}
@@ -176,6 +204,18 @@ export function CandidatesTable() {
           setSelectedCandidate(null);
         }}
         onSave={handleSave}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        candidate={candidateToDelete}
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setCandidateToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
     </div>
   );

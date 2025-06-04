@@ -40,7 +40,10 @@ export const generateAITools = (settings: AppSettings) => [
                   return acc;
                 }, {} as Record<string, any>)
               },
-              notes: { type: "string", description: "Additional notes" }
+              notes: { 
+                type: "string", 
+                description: "Additional notes. ONLY include if user provides meaningful notes. NEVER set to 'no notes', 'none', or similar - leave empty instead." 
+              }
             }
           },
           candidates: {
@@ -59,7 +62,10 @@ export const generateAITools = (settings: AppSettings) => [
                     return acc;
                   }, {} as Record<string, any>)
                 },
-                notes: { type: "string" }
+                notes: { 
+                  type: "string", 
+                  description: "Additional notes. ONLY include if meaningful notes provided." 
+                }
               }
             },
             description: `Array of ${settings.entityName.toLowerCase()} for bulk operations`
@@ -131,6 +137,14 @@ ACTIONS:
 - UPDATE: "update", "change", "modify", "set", "edit"  
 - DELETE: "remove", "delete", "fire", "eliminate"
 - SEARCH: "show me", "find", "search", "who is", "${settings.entityName.toLowerCase()} from", "looking for"
+
+NOTES HANDLING RULES:
+- ONLY add notes if the user provides meaningful, specific information
+- NEVER set notes to "no notes", "none", "n/a", or similar placeholder text
+- If user says "no notes" or "skip notes", do NOT include the notes field at all
+- Empty notes field is better than placeholder text
+- Examples of meaningful notes: "Excellent Python skills", "Available immediately", "Relocating from US"
+- Examples to IGNORE: "no notes", "none", "nothing to add", "skip", "n/a"
 
 MULTIPLE VALUE SEARCH RULES:
 - For location searches like "from Cork and Dublin", use: location: "cork and dublin"

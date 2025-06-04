@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, RotateCcw, Plus, Trash2, Settings, Users, Tag, AlertCircle, Check, AlertTriangle } from 'lucide-react';
+import { X, Save, RotateCcw, Plus, Trash2, Settings, Users, Tag, AlertCircle, Check, AlertTriangle, Info } from 'lucide-react';
 import { AppSettings, FieldConfig } from '../../types/settings';
 import { FieldEditor } from './FieldEditor';
 
@@ -253,20 +253,34 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
                             {errors.appName}
                           </p>
                         )}
+                        <p className="text-gray-500 text-xs mt-1">The name shown in the app header</p>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Category Label
+                        <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                          Categorization Label
+                          <div className="group relative">
+                            <Info className="w-3 h-3 text-gray-500 cursor-help" />
+                            <div className="absolute left-0 top-5 w-64 p-3 bg-dark-100 border border-dark-300 
+                                           rounded-lg shadow-lg opacity-0 group-hover:opacity-100 z-10 transition-opacity">
+                              <p className="text-xs text-gray-300">
+                                This label is used for dropdown categorization fields (like "Industry", "Department", "Status"). 
+                                It helps organize your entities into meaningful groups.
+                              </p>
+                            </div>
+                          </div>
                         </label>
                         <input
                           type="text"
                           value={formData.industryLabel}
                           onChange={(e) => setFormData({...formData, industryLabel: e.target.value})}
-                          placeholder="e.g., Industry, Department, Category"
+                          placeholder="e.g., Industry, Department, Category, Status"
                           className="w-full px-3 py-2 bg-dark-200 text-white rounded-lg border border-dark-300 
                                    focus:border-blue-500 focus:outline-none transition-colors"
                         />
+                        <p className="text-gray-500 text-xs mt-1">
+                          Generic label for categorizing your {formData.entityName.toLowerCase()}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -286,7 +300,7 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
                           className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
                             errors.entityName ? 'border-red-500' : 'border-dark-300'
                           } focus:border-blue-500 focus:outline-none transition-colors`}
-                          placeholder="e.g., Candidates, Contacts, People"
+                          placeholder="e.g., Candidates, Contacts, People, Customers"
                         />
                         {errors.entityName && (
                           <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
@@ -294,6 +308,7 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
                             {errors.entityName}
                           </p>
                         )}
+                        <p className="text-gray-500 text-xs mt-1">What you call multiple records (table headers, etc.)</p>
                       </div>
 
                       <div>
@@ -307,7 +322,7 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
                           className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
                             errors.entityNameSingular ? 'border-red-500' : 'border-dark-300'
                           } focus:border-blue-500 focus:outline-none transition-colors`}
-                          placeholder="e.g., Candidate, Contact, Person"
+                          placeholder="e.g., Candidate, Contact, Person, Customer"
                         />
                         {errors.entityNameSingular && (
                           <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
@@ -315,6 +330,7 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
                             {errors.entityNameSingular}
                           </p>
                         )}
+                        <p className="text-gray-500 text-xs mt-1">What you call one record (buttons, messages, etc.)</p>
                       </div>
                     </div>
                   </div>
