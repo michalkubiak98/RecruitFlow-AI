@@ -18,6 +18,7 @@ export function CandidatesTable() {
   const [candidateToDelete, setCandidateToDelete] = useState<Candidate | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -40,7 +41,6 @@ export function CandidatesTable() {
   };
 
   const handleDeleteClick = (candidate: Candidate, event: React.MouseEvent) => {
-    // Prevent event bubbling to avoid opening the card modal
     event.stopPropagation();
     setCandidateToDelete(candidate);
     setIsDeleteModalOpen(true);
@@ -94,13 +94,13 @@ export function CandidatesTable() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-dark-100">
+    <div className="h-full flex flex-col bg-dark-50">
       {/* Header */}
       <div className="p-6 border-b border-dark-300">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">{settings.entityName} Table</h1>
-            <p className="text-gray-400">
+            <h1 className="text-heading-1">{settings.entityName}</h1>
+            <p className="text-body-muted mt-1">
               {filteredCandidates.length} {filteredCandidates.length !== 1 ? settings.entityName.toLowerCase() : settings.entityNameSingular.toLowerCase()}
               {filters.search || Object.keys(filters.fieldFilters).length > 0 ? 
                 ` found (${candidates.length} total)` : ''
@@ -119,8 +119,7 @@ export function CandidatesTable() {
               });
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg 
-                     hover:bg-blue-700"
+            className="button-primary flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Add {settings.entityNameSingular}
@@ -133,18 +132,20 @@ export function CandidatesTable() {
           onFiltersChange={setFilters}
           onExport={handleExport}
           candidateCount={filteredCandidates.length}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
       </div>
 
-      {/* Candidate Cards - Full Width with Padding */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {filteredCandidates.length === 0 ? (
           <div className="text-center mt-12">
             <div className="max-w-md mx-auto">
-              <h3 className="text-xl font-semibold text-white mb-4">
-                {candidates.length === 0 ? `👥 No ${settings.entityName.toLowerCase()} yet` : '🔍 No matches found'}
+              <h3 className="text-heading-2 mb-4">
+                {candidates.length === 0 ? `No ${settings.entityName.toLowerCase()} yet` : 'No matches found'}
               </h3>
-              <p className="text-gray-400 mb-6">
+              <p className="text-body-muted mb-6">
                 {candidates.length === 0 
                   ? `Add your first ${settings.entityNameSingular.toLowerCase()} to get started!`
                   : 'Try adjusting your search or filters.'
@@ -163,8 +164,7 @@ export function CandidatesTable() {
                     });
                     setIsModalOpen(true);
                   }}
-                  className="flex items-center gap-2 mx-auto px-6 py-3 bg-blue-600 text-white 
-                           rounded-lg hover:bg-blue-700"
+                  className="button-primary flex items-center gap-2 mx-auto"
                 >
                   <Plus className="w-5 h-5" />
                   Add Your First {settings.entityNameSingular}
@@ -174,23 +174,46 @@ export function CandidatesTable() {
           </div>
         ) : (
           <div className="max-w-7xl mx-auto">
-            {/* Single column on mobile, 2 columns on tablet, 3 on desktop, but wider cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
-              {filteredCandidates.map((candidate) => (
-                <div key={candidate.id} onClick={() => handleCardClick(candidate)} className="cursor-pointer">
-                  <CandidateCard
-                    candidate={candidate}
-                    onEdit={handleEdit}
-                    onDelete={(id, event) => {
-                      const candidate = filteredCandidates.find(c => c.id === id);
-                      if (candidate) {
-                        handleDeleteClick(candidate, event);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                {filteredCandidates.map((candidate) => (
+                  <div key={candidate.id} onClick={() => handleCardClick(candidate)} className="cursor-pointer">
+                    <CandidateCard
+                      candidate={candidate}
+                      onEdit={handleEdit}
+                      onDelete={(id, event) => {
+                        const candidate = filteredCandidates.find(c => c.id === id);
+                        if (candidate) {
+                          handleDeleteClick(candidate, event);
+                        }
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredCandidates.map((candidate) => (
+                  <div 
+                    key={candidate.id} 
+                    onClick={() => handleCardClick(candidate)} 
+                    className="cursor-pointer"
+                  >
+                    <CandidateCard
+                      candidate={candidate}
+                      onEdit={handleEdit}
+                      onDelete={(id, event) => {
+                        const candidate = filteredCandidates.find(c => c.id === id);
+                        if (candidate) {
+                          handleDeleteClick(candidate, event);
+                        }
+                      }}
+                      compact={true}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

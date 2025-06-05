@@ -3,65 +3,46 @@
 # Copy entire codebase to clipboard for sharing with LLMs
 # Usage: ./copy-codebase.sh
 
-echo "🚀 Copying RecruitFlow codebase to clipboard..."
+echo "🚀 Copying Rolodex AI codebase to clipboard..."
 
-# Check if xclip is installed
+# Check if required tools are installed
 if ! command -v xclip &> /dev/null; then
     echo "❌ xclip not found. Installing..."
     sudo apt update && sudo apt install -y xclip
 fi
 
+if ! command -v tree &> /dev/null; then
+    echo "❌ tree not found. Installing..."
+    sudo apt update && sudo apt install -y tree
+fi
+
 # Create temporary file
 TEMP_FILE=$(mktemp)
 
-# Add header
+# Add header with dynamic project structure
 cat << 'EOF' >> "$TEMP_FILE"
-# 🎯 RECRUITFLOW - TAURI + REACT + TYPESCRIPT CODEBASE
+# 🎯 ROLODEX AI - TAURI + REACT + TYPESCRIPT CODEBASE
 
 ## 📁 PROJECT STRUCTURE:
 ```
-recruitflow/
-├── src/
-│   ├── components/
-│   │   ├── Chat/
-│   │   │   ├── ChatInterface.tsx
-│   │   ├── Candidates/
-│   │   │   ├── CandidatesSidebar.tsx
-│   │   │   ├── CandidateModal.tsx
-│   │   ├── Search/
-│   │   │   ├── SearchResultsModal.tsx
-│   │   ├── Layout/
-│   │   │   ├── MainLayout.tsx
-│   ├── hooks/
-│   │   ├── useChat.ts
-│   │   ├── useCandidates.ts
-│   ├── services/
-│   │   ├── ai.ts
-│   │   ├── database/
-│   │   │   ├── tauri-commands.ts
-│   │   ├── storage/
-│   │   │   ├── chatStorage.ts
-│   ├── utils/
-│   │   ├── animations.ts
-│   ├── types.ts
-│   ├── App.tsx
-│   ├── main.tsx
-├── src-tauri/
-│   ├── tauri.conf.json
-│   ├── Cargo.toml
-├── package.json
-├── tailwind.config.js
-├── vite.config.ts
-└── tsconfig.json
+EOF
+
+# Add dynamic tree structure (excluding build folders)
+echo "📋 Generating project structure..."
+tree -I 'node_modules|dist|src-tauri|build|coverage|.git|.next|out' >> "$TEMP_FILE"
+
+cat << 'EOF' >> "$TEMP_FILE"
 ```
 
 ## 💻 TECH STACK:
 - **Frontend**: React 18 + TypeScript + Vite
-- **UI**: Tailwind CSS + Framer Motion + Lucide Icons
-- **State**: Custom React hooks + Local storage persistence
+- **UI**: Tailwind CSS v4 + Lucide Icons  
+- **State Management**: TanStack React Query + Custom hooks
 - **Desktop**: Tauri (Rust backend)
-- **AI Integration**: OpenAI-style API calls
-- **Persistence**: LocalStorage with auto-save
+- **AI Integration**: OpenAI API
+- **Data Processing**: ExcelJS for file handling
+- **Notifications**: React Hot Toast
+- **Utilities**: Date-fns, UUID, clsx, tailwind-merge
 
 ---
 
@@ -93,6 +74,7 @@ get_language() {
         *.rs) echo "rust" ;;
         *.css) echo "css" ;;
         *.md) echo "markdown" ;;
+        *.html) echo "html" ;;
         *) echo "text" ;;
     esac
 }
@@ -102,71 +84,69 @@ cd "$(dirname "$0")"
 
 echo "📋 Adding configuration files..."
 
-# Add main config files
-if [ -f "package.json" ]; then add_file "package.json"; fi
-if [ -f "tsconfig.json" ]; then add_file "tsconfig.json"; fi
-if [ -f "vite.config.ts" ]; then add_file "vite.config.ts"; fi
-if [ -f "tailwind.config.js" ]; then add_file "tailwind.config.js"; fi
+# Add main config files first
+if [ -f "package.json" ]; then 
+    echo "  ✅ package.json"
+    add_file "package.json"
+fi
 
-echo "📋 Adding Tauri configuration..."
+if [ -f "README.md" ]; then 
+    echo "  ✅ README.md"
+    add_file "README.md"
+fi
 
-# Add Tauri files
-if [ -f "src-tauri/tauri.conf.json" ]; then add_file "src-tauri/tauri.conf.json"; fi
-if [ -f "src-tauri/Cargo.toml" ]; then add_file "src-tauri/Cargo.toml"; fi
-
-echo "📋 Adding TypeScript source files..."
-
-# Add all TypeScript/TSX files in order of importance
-important_files=(
-    "src/types.ts"
-    "src/main.tsx"
-    "src/App.tsx"
-    "src/components/Layout/MainLayout.tsx"
-    "src/components/Chat/ChatInterface.tsx"
-    "src/components/Candidates/CandidatesSidebar.tsx"
-    "src/components/Candidates/CandidateModal.tsx"
-    "src/components/Search/SearchResultsModal.tsx"
-    "src/hooks/useChat.ts"
-    "src/hooks/useCandidates.ts"
-    "src/services/ai.ts"
-    "src/services/database/tauri-commands.ts"
-    "src/services/storage/chatStorage.ts"
-    "src/utils/animations.ts"
+# Add other config files
+config_files=(
+    "tsconfig.json"
+    "vite.config.ts" 
+    "tailwind.config.js"
+    "tailwind.config.ts"
+    ".eslintrc.json"
+    ".eslintrc.js"
+    "prettier.config.js"
+    "index.html"
 )
 
-# Add important files first
-for file in "${important_files[@]}"; do
+for file in "${config_files[@]}"; do
     if [ -f "$file" ]; then
         echo "  ✅ $file"
         add_file "$file"
     fi
 done
 
-echo "📋 Adding any remaining TypeScript files..."
+echo "📋 Adding global CSS files..."
 
-# Find and add any other TS/TSX files we might have missed
-find src -name "*.ts" -o -name "*.tsx" | while read -r file; do
-    # Check if file wasn't already added
-    file_added=false
-    for important_file in "${important_files[@]}"; do
-        if [ "$file" = "$important_file" ]; then
-            file_added=true
-            break
-        fi
-    done
-    
-    if [ "$file_added" = false ]; then
-        echo "  ➕ $file"
+# Find and add all CSS files
+find . -name "*.css" -not -path "./node_modules/*" -not -path "./dist/*" -not -path "./build/*" | while read -r file; do
+    if [ -f "$file" ]; then
+        echo "  🎨 $file"
         add_file "$file"
     fi
 done
 
-echo "📋 Adding CSS files..."
+echo "📋 Adding all TypeScript source files..."
 
-# Add any CSS files
-find src -name "*.css" | while read -r file; do
+# Find and add all TS/TSX files, excluding node_modules and build folders
+find src -name "*.ts" -o -name "*.tsx" | sort | while read -r file; do
     if [ -f "$file" ]; then
-        echo "  🎨 $file"
+        echo "  ✅ $file"
+        add_file "$file"
+    fi
+done
+
+echo "📋 Adding Tauri configuration..."
+
+# Add Tauri files if they exist
+tauri_files=(
+    "src-tauri/tauri.conf.json"
+    "src-tauri/Cargo.toml"
+    "src-tauri/src/main.rs"
+    "src-tauri/src/lib.rs"
+)
+
+for file in "${tauri_files[@]}"; do
+    if [ -f "$file" ]; then
+        echo "  ⚙️  $file"
         add_file "$file"
     fi
 done
@@ -175,9 +155,11 @@ echo "📋 Adding other important files..."
 
 # Add any other important files
 other_files=(
-    "index.html"
-    "README.md"
     ".gitignore"
+    ".env.example"
+    ".env.local"
+    "vercel.json"
+    "netlify.toml"
 )
 
 for file in "${other_files[@]}"; do
@@ -192,50 +174,32 @@ cat << 'EOF' >> "$TEMP_FILE"
 
 ---
 
-## 🎯 KEY FEATURES IMPLEMENTED:
+## 🎯 ROLODEX AI - PROJECT OVERVIEW
 
-### ✅ **AI Chat Interface**
-- Natural language processing for candidate management
-- Persistent chat history across app sessions
-- Real-time search and filtering
-- Delete confirmations and error handling
+### ✅ **Core Features**
+- AI-powered contact management and organization
+- Modern React + TypeScript architecture  
+- Desktop application with Tauri framework
+- Real-time data processing and search
+- Professional UI with Tailwind CSS v4
+- File import/export capabilities with ExcelJS
 
-### ✅ **Candidate Management**
-- CRUD operations via AI commands
-- Detailed candidate profiles with modal editing
-- Industry-specific categorization (life science, food science)
-- Notes, salary, location, and skills tracking
+### ✅ **Development Stack**
+- **Frontend**: React 18 + TypeScript + Vite for fast development
+- **Styling**: Tailwind CSS v4 with modern design patterns
+- **State**: TanStack React Query for server state management
+- **Desktop**: Tauri for cross-platform native performance
+- **AI**: OpenAI API integration for intelligent features
+- **Notifications**: React Hot Toast for user feedback
 
-### ✅ **Search & Filtering**
-- AI-powered search with multiple criteria
-- Modal results display with candidate details
-- Real-time filtering in sidebar
-
-### ✅ **Persistence & Storage**
-- LocalStorage persistence for chat and candidates
-- Auto-save functionality
-- Data survives app restarts
-
-### ✅ **UI/UX Polish**
-- Smooth Framer Motion animations
-- Dark theme with consistent styling
-- Responsive design with Tailwind CSS
-- Loading states and error handling
-- Toast notifications for user feedback
-
-### ✅ **Desktop Integration**
-- Tauri-based desktop application
-- Cross-platform compatibility
-- Native performance with web technologies
+### ✅ **Project Structure**
+- Clean separation of concerns with organized folder structure
+- TypeScript throughout for type safety
+- Modern tooling with ESLint and Prettier
+- Optimized build process with Vite
 
 ## 🚀 **CURRENT STATUS:**
-- Fully functional AI chat interface
-- Complete candidate management system
-- Persistent data storage
-- Polished animations and UI
-- Ready for production deployment
-
-This is a complete, working Tauri + React + TypeScript application for AI-powered candidate management.
+This is a complete, modern Tauri + React + TypeScript application for AI-powered contact management and organization.
 
 EOF
 
@@ -248,12 +212,14 @@ cat "$TEMP_FILE" | xclip -selection clipboard
 rm "$TEMP_FILE"
 
 echo ""
-echo "✅ SUCCESS! Entire codebase copied to clipboard!"
+echo "✅ SUCCESS! Entire Rolodex AI codebase copied to clipboard!"
 echo ""
 echo "📊 SUMMARY:"
+echo "   • Dynamic project structure with tree command"
 echo "   • All TypeScript/TSX files included"
+echo "   • Global CSS files included"
 echo "   • Configuration files included"
-echo "   • Folder structure documented"
+echo "   • README and package.json included"
 echo "   • Ready to paste into LLM chat"
 echo ""
 echo "🎯 You can now paste this into Claude, ChatGPT, or any other LLM!"

@@ -23,19 +23,6 @@ export function SearchResultsModal({
 
   if (!isOpen) return null;
 
-  const getFieldColor = (fieldId: string, value: any) => {
-    const fieldConfig = settings.fields.find(f => f.id === fieldId);
-    
-    if (fieldConfig?.type === 'dropdown') {
-      switch (value) {
-        case 'life science': return 'bg-blue-600/20 text-blue-300 border-blue-500/30';
-        case 'food science': return 'bg-green-600/20 text-green-300 border-green-500/30';
-        default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30';
-      }
-    }
-    return 'bg-purple-600/20 text-purple-300 border-purple-500/30';
-  };
-
   const renderFieldValue = (fieldConfig: any, value: any) => {
     if (fieldConfig.type === 'boolean') {
       return value ? 'Yes' : 'No';
@@ -44,15 +31,15 @@ export function SearchResultsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-dark-200 rounded-lg border border-dark-300 w-full max-w-4xl max-h-[80vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-dark-100 border border-dark-300 rounded-lg w-full max-w-4xl max-h-[80vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-dark-300">
           <div>
-            <h2 className="text-xl font-semibold text-white mb-1">
-              🔍 Search Results
+            <h2 className="text-heading-2 mb-1">
+              Search Results
             </h2>
-            <p className="text-gray-400 text-sm">
+            <p className="text-body-muted">
               {searchType === 'specific' 
                 ? `Searching for: "${query}"`
                 : `Filter: ${criteria || query}`
@@ -61,7 +48,7 @@ export function SearchResultsModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded"
+            className="p-2 text-muted hover:text-primary hover:bg-dark-200 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -72,61 +59,61 @@ export function SearchResultsModal({
           {results.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-white mb-2">No {settings.entityName.toLowerCase()} found</h3>
-              <p className="text-gray-400">
+              <h3 className="text-heading-3 mb-2">No {settings.entityName.toLowerCase()} found</h3>
+              <p className="text-body-muted">
                 Try adjusting your search criteria or check the spelling.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="text-white mb-4">
-                Found <span className="font-semibold text-blue-400">{results.length}</span> {results.length !== 1 ? settings.entityName.toLowerCase() : settings.entityNameSingular.toLowerCase()}
+            <div className="space-y-6">
+              <div className="text-primary">
+                Found <span className="font-semibold text-primary-500">{results.length}</span> {results.length !== 1 ? settings.entityName.toLowerCase() : settings.entityNameSingular.toLowerCase()}
               </div>
               
               <div className="grid gap-4">
                 {results.map((candidate) => (
                   <div
                     key={candidate.id}
-                    className="bg-dark-100 rounded-lg border border-dark-300 p-4 hover:border-blue-500/50"
+                    className="card-primary hover:border-primary-500 transition-colors"
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-                          <User className="w-4 h-4 text-gray-400" />
+                        <h3 className="text-heading-3 mb-1 flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted" />
                           {candidate.name}
                         </h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-4 text-caption-subtle">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            Added {new Date(candidate.createdAt).toLocaleDateString()}
+                            <span>Added {new Date(candidate.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>
                       
                       {candidate.notes && (
                         <div className="group relative">
-                          <StickyNote className="w-4 h-4 text-yellow-400" />
+                          <StickyNote className="w-4 h-4 text-warning-500" />
                           <div className="absolute right-0 top-6 w-64 p-3 bg-dark-200 border border-dark-300 
-                                         rounded-lg shadow-lg opacity-0 group-hover:opacity-100 z-10">
-                            <p className="text-sm text-gray-300">{candidate.notes}</p>
+                                         rounded-lg shadow-lg opacity-0 group-hover:opacity-100 z-10 transition-opacity">
+                            <p className="text-body text-primary">{candidate.notes}</p>
                           </div>
                         </div>
                       )}
                     </div>
 
                     {/* Dynamic Fields Display */}
-                    <div className="space-y-3">
-                      {/* Primary tags (dropdowns and key fields) */}
+                    <div className="space-y-4">
+                      {/* Primary chips */}
                       <div className="flex flex-wrap items-center gap-2">
                         {settings.fields.map((fieldConfig) => {
                           const value = candidate.fields[fieldConfig.id];
                           if (!value && fieldConfig.type !== 'boolean') return null;
                           
-                          if (fieldConfig.type === 'dropdown' || fieldConfig.id === 'roles') {
+                          if (fieldConfig.type === 'dropdown' || fieldConfig.id === 'role') {
                             return (
-                              <div key={fieldConfig.id} className={`px-3 py-1 rounded-full text-sm border ${getFieldColor(fieldConfig.id, value)}`}>
+                              <span key={fieldConfig.id} className="badge badge-primary">
                                 {fieldConfig.label}: {renderFieldValue(fieldConfig, value)}
-                              </div>
+                              </span>
                             );
                           }
                           return null;
@@ -138,12 +125,12 @@ export function SearchResultsModal({
                         {settings.fields.map((fieldConfig) => {
                           const value = candidate.fields[fieldConfig.id];
                           if (!value && fieldConfig.type !== 'boolean') return null;
-                          if (fieldConfig.type === 'dropdown' || fieldConfig.id === 'roles') return null;
+                          if (fieldConfig.type === 'dropdown' || fieldConfig.id === 'role') return null;
                           
                           return (
-                            <div key={fieldConfig.id} className="flex items-center gap-2 text-gray-300 text-sm">
-                              <span className="text-gray-400 font-medium">{fieldConfig.label}:</span>
-                              <span className={fieldConfig.type === 'boolean' && value ? 'text-green-400' : ''}>
+                            <div key={fieldConfig.id} className="flex items-center gap-2 text-body">
+                              <span className="text-muted font-medium">{fieldConfig.label}:</span>
+                              <span className={fieldConfig.type === 'boolean' && value ? 'text-success-500' : 'text-primary'}>
                                 {renderFieldValue(fieldConfig, value)}
                               </span>
                             </div>
@@ -154,10 +141,10 @@ export function SearchResultsModal({
 
                     {/* Notes */}
                     {candidate.notes && (
-                      <div className="mt-3 pt-3 border-t border-dark-300">
+                      <div className="mt-4 pt-4 border-t border-dark-300">
                         <div className="flex items-start gap-2">
-                          <StickyNote className="w-4 h-4 text-yellow-400 mt-0.5" />
-                          <p className="text-sm text-gray-300">{candidate.notes}</p>
+                          <StickyNote className="w-4 h-4 text-warning-500 mt-0.5" />
+                          <p className="text-body text-primary">{candidate.notes}</p>
                         </div>
                       </div>
                     )}

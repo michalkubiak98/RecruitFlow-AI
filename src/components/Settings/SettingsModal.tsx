@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, RotateCcw, Plus, Trash2, Settings, Users, Tag, AlertCircle, Check, AlertTriangle, Info } from 'lucide-react';
+import { X, Save, RotateCcw, Plus, Trash2, Settings, Users, Tag, AlertCircle, Key, BookOpen, Palette } from 'lucide-react';
 import { AppSettings, FieldConfig } from '../../types/settings';
 import { FieldEditor } from './FieldEditor';
 
@@ -13,41 +13,14 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onReset }: SettingsModalProps) {
   const [formData, setFormData] = useState<AppSettings>(currentSettings);
-  const [activeTab, setActiveTab] = useState<'general' | 'fields'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'fields' | 'api' | 'theme'>('general');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [warnings, setWarnings] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setFormData(currentSettings);
     setErrors({});
-    setWarnings({});
   }, [currentSettings]);
-
-  const detectOverlaps = () => {
-    const newWarnings: Record<string, string> = {};
-    const dropdownFields = formData.fields.filter(f => f.type === 'dropdown' && f.options);
-    
-    // Check for overlapping options between dropdown fields
-    for (let i = 0; i < dropdownFields.length; i++) {
-      for (let j = i + 1; j < dropdownFields.length; j++) {
-        const field1 = dropdownFields[i];
-        const field2 = dropdownFields[j];
-        
-        const options1 = (field1.options || []).map(opt => opt.toLowerCase().trim());
-        const options2 = (field2.options || []).map(opt => opt.toLowerCase().trim());
-        
-        const overlaps = options1.filter(opt => options2.includes(opt));
-        
-        if (overlaps.length > 0) {
-          const overlapText = overlaps.map(opt => `"${opt}"`).join(', ');
-          newWarnings[`overlap-${field1.id}-${field2.id}`] = 
-            `⚠️ "${field1.label}" and "${field2.label}" both have: ${overlapText}. This may confuse the AI!`;
-        }
-      }
-    }
-    
-    setWarnings(newWarnings);
-  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -61,6 +34,13 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
     }
     if (!formData.entityNameSingular.trim()) {
       newErrors.entityNameSingular = 'Entity name (singular) is required';
+    }
+
+    // API key validation
+    if (!formData.openaiApiKey.trim()) {
+      newErrors.openaiApiKey = 'OpenAI API key is required for AI features';
+    } else if (!formData.openaiApiKey.startsWith('sk-')) {
+      newErrors.openaiApiKey = 'API key should start with "sk-"';
     }
 
     // Field validation
@@ -89,18 +69,21 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
     });
 
     setErrors(newErrors);
-    
-    // Check for overlaps (warnings, not errors)
-    detectOverlaps();
-    
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSave(formData);
-      onClose();
+    if (!validateForm()) return;
+
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+      onClose(); // Close modal after successful save
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -134,9 +117,6 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
     delete newErrors[`field-${index}-label`];
     delete newErrors[`field-${index}-options`];
     setErrors(newErrors);
-    
-    // Re-check overlaps when fields change
-    setTimeout(detectOverlaps, 100);
   };
 
   const removeField = (index: number) => {
@@ -145,227 +125,193 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
       ...formData,
       fields: newFields
     });
-    // Re-check overlaps after removal
-    setTimeout(detectOverlaps, 100);
+  };
+
+  const resetOnboarding = () => {
+    setFormData({
+      ...formData,
+      hasCompletedOnboarding: false
+    });
   };
 
   if (!isOpen) return null;
 
-  const overlapWarnings = Object.values(warnings);
-
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-      <div className="bg-dark-200 rounded-xl border border-dark-300 w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-dark-100 border border-dark-300 rounded-lg w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-dark-300 bg-dark-200 rounded-t-xl">
+        <div className="flex items-center justify-between p-6 border-b border-dark-300">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
+            <div className="p-2 bg-primary-500 rounded-lg">
               <Settings className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">Application Settings</h2>
-              <p className="text-gray-400 text-sm">Configure your app and custom fields</p>
+              <h2 className="text-heading-2">Settings</h2>
+              <p className="text-caption-subtle">Configure your application</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors"
+            disabled={isSaving}
+            className="p-2 text-muted hover:text-primary hover:bg-dark-200 rounded-lg transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Overlap Warnings */}
-        {overlapWarnings.length > 0 && (
-          <div className="p-4 bg-yellow-900/20 border-b border-yellow-500/30">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-yellow-300 font-medium mb-2">Field Overlap Detected</h4>
-                <div className="space-y-1">
-                  {overlapWarnings.map((warning, index) => (
-                    <p key={index} className="text-yellow-200 text-sm">{warning}</p>
-                  ))}
-                </div>
-                <p className="text-yellow-300 text-xs mt-2">
-                  💡 Tip: Use distinct options like "Frontend Developer" vs "Engineering Dept" to help AI understand the difference.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Tab Navigation */}
-        <div className="flex border-b border-dark-300 bg-dark-200">
-          <button
-            onClick={() => setActiveTab('general')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'general'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-dark-100'
-                : 'text-gray-400 hover:text-white hover:bg-dark-300'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            General
-          </button>
-          <button
-            onClick={() => setActiveTab('fields')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === 'fields'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-dark-100'
-                : 'text-gray-400 hover:text-white hover:bg-dark-300'
-            }`}
-          >
-            <Tag className="w-4 h-4" />
-            Custom Fields ({formData.fields.length})
-            {overlapWarnings.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full"></span>
-            )}
-          </button>
+        <div className="flex border-b border-dark-300">
+          {[
+            { id: 'general', icon: Users, label: 'General' },
+            { id: 'fields', icon: Tag, label: `Fields (${formData.fields.length})` },
+            { id: 'api', icon: Key, label: 'API Setup' },
+            { id: 'theme', icon: Palette, label: 'Theme' }
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id as any)}
+              disabled={isSaving}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors disabled:opacity-50 ${
+                activeTab === id
+                  ? 'text-primary-500 border-b-2 border-primary-500 bg-dark-200'
+                  : 'text-muted hover:text-primary hover:bg-dark-200'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Content - Scrollable */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <form onSubmit={handleSubmit} className="h-full flex flex-col">
-            <div className="flex-1 p-6 space-y-6">
+            <div className="flex-1 p-6 space-y-8">
               {activeTab === 'general' && (
-                <div className="space-y-6">
-                  <div className="bg-dark-100 rounded-lg p-4 border border-dark-300">
-                    <h3 className="text-lg font-semibold text-white mb-4">App Identity</h3>
+                <div className="space-y-8">
+                  {/* App Identity */}
+                  <div className="space-y-6">
+                    <h3 className="text-heading-3">App Identity</h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          App Name
+                        <label className="block text-body text-primary mb-2">
+                          Application Name
                         </label>
                         <input
                           type="text"
                           value={formData.appName}
                           onChange={(e) => setFormData({...formData, appName: e.target.value})}
-                          className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
-                            errors.appName ? 'border-red-500' : 'border-dark-300'
-                          } focus:border-blue-500 focus:outline-none transition-colors`}
-                          placeholder="e.g., Rolodex.ai"
+                          className={`input-primary ${errors.appName ? 'border-error-500' : ''}`}
+                          placeholder="e.g., Rolodex.ai, ContactPro, TeamHub"
+                          disabled={isSaving}
                         />
                         {errors.appName && (
-                          <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
                             {errors.appName}
                           </p>
                         )}
-                        <p className="text-gray-500 text-xs mt-1">The name shown in the app header</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                          Categorization Label
-                          <div className="group relative">
-                            <Info className="w-3 h-3 text-gray-500 cursor-help" />
-                            <div className="absolute left-0 top-5 w-64 p-3 bg-dark-100 border border-dark-300 
-                                           rounded-lg shadow-lg opacity-0 group-hover:opacity-100 z-10 transition-opacity">
-                              <p className="text-xs text-gray-300">
-                                This label is used for dropdown categorization fields (like "Industry", "Department", "Status"). 
-                                It helps organize your entities into meaningful groups.
-                              </p>
-                            </div>
-                          </div>
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.industryLabel}
-                          onChange={(e) => setFormData({...formData, industryLabel: e.target.value})}
-                          placeholder="e.g., Industry, Department, Category, Status"
-                          className="w-full px-3 py-2 bg-dark-200 text-white rounded-lg border border-dark-300 
-                                   focus:border-blue-500 focus:outline-none transition-colors"
-                        />
-                        <p className="text-gray-500 text-xs mt-1">
-                          Generic label for categorizing your {formData.entityName.toLowerCase()}
-                        </p>
+                        <p className="text-caption-subtle mt-1">The name displayed in your app header and window title</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-dark-100 rounded-lg p-4 border border-dark-300">
-                    <h3 className="text-lg font-semibold text-white mb-4">Entity Names</h3>
+                  {/* Entity Configuration */}
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-heading-3">What Are You Managing?</h3>
+                      <p className="text-body-muted mt-1">Define what type of records you'll be working with</p>
+                    </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Entity Name (Plural)
+                        <label className="block text-body text-primary mb-2">
+                          Multiple Records (Plural)
                         </label>
                         <input
                           type="text"
                           value={formData.entityName}
                           onChange={(e) => setFormData({...formData, entityName: e.target.value})}
-                          className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
-                            errors.entityName ? 'border-red-500' : 'border-dark-300'
-                          } focus:border-blue-500 focus:outline-none transition-colors`}
-                          placeholder="e.g., Candidates, Contacts, People, Customers"
+                          className={`input-primary ${errors.entityName ? 'border-error-500' : ''}`}
+                          placeholder="e.g., Candidates, Contacts, Clients"
+                          disabled={isSaving}
                         />
                         {errors.entityName && (
-                          <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
                             {errors.entityName}
                           </p>
                         )}
-                        <p className="text-gray-500 text-xs mt-1">What you call multiple records (table headers, etc.)</p>
+                        <p className="text-caption-subtle mt-1">Used for table headers, "All Candidates"</p>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Entity Name (Singular)
+                        <label className="block text-body text-primary mb-2">
+                          Single Record (Singular)
                         </label>
                         <input
                           type="text"
                           value={formData.entityNameSingular}
                           onChange={(e) => setFormData({...formData, entityNameSingular: e.target.value})}
-                          className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
-                            errors.entityNameSingular ? 'border-red-500' : 'border-dark-300'
-                          } focus:border-blue-500 focus:outline-none transition-colors`}
-                          placeholder="e.g., Candidate, Contact, Person, Customer"
+                          className={`input-primary ${errors.entityNameSingular ? 'border-error-500' : ''}`}
+                          placeholder="e.g., Candidate, Contact, Client"
+                          disabled={isSaving}
                         />
                         {errors.entityNameSingular && (
-                          <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
                             {errors.entityNameSingular}
                           </p>
                         )}
-                        <p className="text-gray-500 text-xs mt-1">What you call one record (buttons, messages, etc.)</p>
+                        <p className="text-caption-subtle mt-1">Used for buttons, "Add Candidate"</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-1 bg-blue-600 rounded-full mt-0.5">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="text-blue-300 font-medium mb-1">Preview</h4>
-                        <p className="text-blue-200 text-sm">
-                          Your app will be called "<strong>{formData.appName}</strong>" and will manage 
-                          <strong> {formData.entityName.toLowerCase()}</strong>. 
-                          The AI will understand commands like "Add a new {formData.entityNameSingular.toLowerCase()}" 
-                          and "Show me all {formData.entityName.toLowerCase()}".
-                        </p>
-                      </div>
+                  {/* Preview */}
+                  <div className="bg-primary-500/10 border border-primary-500/20 rounded-lg p-6">
+                    <h4 className="text-body-lg text-primary-500 mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                      Preview
+                    </h4>
+                    <div className="space-y-2 text-body text-primary">
+                      <p>"<strong>{formData.appName || 'Your App'}</strong>" will manage <strong>{formData.entityName.toLowerCase() || 'your records'}</strong></p>
+                      <p>AI will understand: "Add a new {formData.entityNameSingular.toLowerCase() || 'record'}"</p>
+                      <p>AI will understand: "Show me all {formData.entityName.toLowerCase() || 'records'} from Dublin"</p>
+                      <p>Table header will show: "All {formData.entityName || 'Records'}"</p>
                     </div>
+                  </div>
+
+                  {/* Onboarding Reset */}
+                  <div className="space-y-6">
+                    <h3 className="text-heading-3">Tutorial & Help</h3>
+                    <button
+                      type="button"
+                      onClick={resetOnboarding}
+                      disabled={isSaving}
+                      className="flex items-center gap-2 button-secondary disabled:opacity-50"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      Reset Tutorial (Show Onboarding Again)
+                    </button>
+                    <p className="text-caption-subtle">This will show the full AI chat tutorial next time you open the app</p>
                   </div>
                 </div>
               )}
 
               {activeTab === 'fields' && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">Custom Fields</h3>
-                      <p className="text-gray-400 text-sm">Define the data fields for your {formData.entityName.toLowerCase()}</p>
+                      <h3 className="text-heading-3">Custom Fields</h3>
+                      <p className="text-body-muted mt-1">Define the data structure for your {formData.entityName.toLowerCase()}</p>
                     </div>
                     <button
                       type="button"
                       onClick={addField}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg 
-                               hover:bg-blue-700 transition-colors"
+                      disabled={isSaving}
+                      className="button-primary flex items-center gap-2 disabled:opacity-50"
                     >
                       <Plus className="w-4 h-4" />
                       Add Field
@@ -373,66 +319,145 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
                   </div>
 
                   {formData.fields.length === 0 ? (
-                    <div className="text-center py-12 bg-dark-100 rounded-lg border border-dark-300">
-                      <Tag className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                      <h4 className="text-gray-300 font-medium mb-2">No custom fields yet</h4>
-                      <p className="text-gray-400 text-sm mb-4">Add fields to customize your data structure</p>
+                    <div className="text-center py-12 card-primary">
+                      <Tag className="w-12 h-12 text-muted mx-auto mb-4" />
+                      <h4 className="text-body-lg text-primary mb-2">No custom fields yet</h4>
+                      <p className="text-body-muted mb-6">Add fields to customize your data structure</p>
                       <button
                         type="button"
                         onClick={addField}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        disabled={isSaving}
+                        className="button-primary disabled:opacity-50"
                       >
                         Add Your First Field
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {formData.fields.map((field, index) => (
-                        <div key={field.id} className="bg-dark-100 rounded-lg border border-dark-300 overflow-hidden">
-                          <div className="flex items-center justify-between p-4 bg-dark-200 border-b border-dark-300">
+                        <div key={`${field.id}-${index}`} className="card-primary">
+                          <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-sm font-medium">
+                              <div className="w-8 h-8 bg-primary-500 rounded-lg text-white text-sm font-medium flex items-center justify-center">
                                 {index + 1}
                               </div>
                               <div>
-                                <h4 className="text-white font-medium">{field.label || 'Untitled Field'}</h4>
-                                <p className="text-gray-400 text-sm capitalize">{field.type} field</p>
+                                <h4 className="text-body-lg text-primary">{field.label || 'Untitled Field'}</h4>
+                                <p className="text-caption-subtle capitalize">{field.type} field</p>
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => removeField(index)}
-                              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-400/20 rounded-lg transition-colors"
+                              disabled={isSaving}
+                              className="p-2 text-error-500 hover:text-error-400 hover:bg-error-500/10 rounded-lg transition-colors disabled:opacity-50"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
-                          <div className="p-4">
-                            <FieldEditor
-                              field={field}
-                              onChange={(updatedField) => updateField(index, updatedField)}
-                              errors={{
-                                id: errors[`field-${index}-id`],
-                                label: errors[`field-${index}-label`],
-                                options: errors[`field-${index}-options`]
-                              }}
-                            />
-                          </div>
+                          <FieldEditor
+                            field={field}
+                            onChange={(updatedField) => updateField(index, updatedField)}
+                            errors={{
+                              id: errors[`field-${index}-id`],
+                              label: errors[`field-${index}-label`],
+                              options: errors[`field-${index}-options`]
+                            }}
+                          />
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               )}
+
+              {activeTab === 'api' && (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-heading-3">OpenAI API Configuration</h3>
+                    <p className="text-body-muted mt-1">Your API key is stored locally and never shared</p>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-body text-primary mb-2">
+                        OpenAI API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={formData.openaiApiKey}
+                        onChange={(e) => setFormData({...formData, openaiApiKey: e.target.value})}
+                        className={`input-primary ${errors.openaiApiKey ? 'border-error-500' : ''}`}
+                        placeholder="sk-..."
+                        disabled={isSaving}
+                      />
+                      {errors.openaiApiKey && (
+                        <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {errors.openaiApiKey}
+                        </p>
+                      )}
+                      <p className="text-caption-subtle mt-1">Required for AI chat functionality</p>
+                    </div>
+
+                    <div className="bg-warning-500/10 border border-warning-500/20 rounded-lg p-4">
+                      <h4 className="text-body-lg text-warning-500 mb-2">Getting Your API Key</h4>
+                      <ol className="text-body text-primary space-y-1 list-decimal list-inside">
+                        <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">platform.openai.com/api-keys</a></li>
+                        <li>Click "Create new secret key"</li>
+                        <li>Copy the key (starts with "sk-")</li>
+                        <li>Paste it above</li>
+                        <li>Add billing information to your OpenAI account</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'theme' && (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-heading-3">App Theme</h3>
+                    <p className="text-body-muted mt-1">Choose your preferred color scheme</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Dark Corporate Theme */}
+                    <div className="card-primary border-primary-500 cursor-pointer">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-body-lg text-primary">Dark Corporate</h4>
+                        <div className="w-4 h-4 bg-primary-500 rounded-full"></div>
+                      </div>
+                      <div className="flex gap-2 mb-3">
+                        <div className="w-4 h-4 bg-dark-50 rounded border border-dark-300"></div>
+                        <div className="w-4 h-4 bg-dark-200 rounded"></div>
+                        <div className="w-4 h-4 bg-primary-500 rounded"></div>
+                        <div className="w-4 h-4 bg-success-500 rounded"></div>
+                      </div>
+                      <p className="text-caption-subtle">Professional dark theme with blue accents</p>
+                    </div>
+
+                    {/* Coming Soon */}
+                    <div className="card-primary opacity-50">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-body-lg text-primary">More Themes</h4>
+                        <div className="badge badge-primary">Coming Soon</div>
+                      </div>
+                      <p className="text-caption-subtle">Additional themes will be added in future updates</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Footer */}
-            <div className="flex gap-3 p-6 border-t border-dark-300 bg-dark-200">
+            <div className="flex gap-3 p-6 border-t border-dark-300">
               <button
                 type="button"
                 onClick={onReset}
-                className="flex items-center gap-2 px-4 py-2 text-gray-300 border border-dark-300 rounded-lg 
-                         hover:bg-dark-300 transition-colors"
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 text-muted border border-dark-400 rounded-lg 
+                         hover:bg-dark-300 transition-colors disabled:opacity-50"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reset to Default
@@ -441,19 +466,27 @@ export function SettingsModal({ isOpen, onClose, currentSettings, onSave, onRese
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2 text-gray-300 border border-dark-300 rounded-lg 
-                         hover:bg-dark-300 transition-colors"
+                disabled={isSaving}
+                className="button-secondary disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg 
-                         hover:bg-blue-700 transition-colors"
+                disabled={isSaving}
+                className="button-primary flex items-center gap-2 disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                Save Settings
-                {overlapWarnings.length > 0 && <AlertTriangle className="w-4 h-4 text-yellow-300" />}
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Settings
+                  </>
+                )}
               </button>
             </div>
           </form>

@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
 import { FieldConfig } from '../../types/settings';
 
@@ -12,12 +13,47 @@ interface FieldEditorProps {
 }
 
 export function FieldEditor({ field, onChange, errors = {} }: FieldEditorProps) {
+  const [localField, setLocalField] = useState<FieldConfig>(field);
+  const idInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync with prop changes but preserve focus and cursor position
+  useEffect(() => {
+    const currentElement = document.activeElement;
+    const wasFocused = currentElement === idInputRef.current;
+    const cursorPosition = wasFocused ? (currentElement as HTMLInputElement)?.selectionStart : null;
+    
+    setLocalField(field);
+    
+    // Restore focus and cursor position if needed
+    if (wasFocused && idInputRef.current && cursorPosition !== null) {
+      requestAnimationFrame(() => {
+        idInputRef.current?.focus();
+        idInputRef.current?.setSelectionRange(cursorPosition, cursorPosition);
+      });
+    }
+  }, [field.label, field.type, field.required, field.options, field.description, field.placeholder]);
+
+  // Debounced onChange to prevent excessive calls
+  const debouncedOnChange = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (updatedField: FieldConfig) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          onChange(updatedField);
+        }, 150); // Reduced debounce time for better responsiveness
+      };
+    })(),
+    [onChange]
+  );
+
   const updateField = (updates: Partial<FieldConfig>) => {
-    onChange({ ...field, ...updates });
+    const updatedField = { ...localField, ...updates };
+    setLocalField(updatedField);
+    debouncedOnChange(updatedField);
   };
 
   const handleIdChange = (value: string) => {
-    // Don't transform while typing, just store the raw value
     const cleanId = value.toLowerCase().replace(/[^a-z0-9_\s]/g, '').replace(/\s+/g, '_');
     updateField({ id: cleanId });
   };
@@ -27,154 +63,144 @@ export function FieldEditor({ field, onChange, errors = {} }: FieldEditorProps) 
     updateField({ options });
   };
 
-  const getFieldTypeIcon = (type: string) => {
+  const getFieldTypeDescription = (type: string) => {
     switch (type) {
-      case 'text': return '📝';
-      case 'boolean': return '☑️';
-      case 'dropdown': return '📋';
-      default: return '📝';
+      case 'text': return 'Free text input field';
+      case 'boolean': return 'Yes/No checkbox field - AI will understand "yes/no", "can/cannot", etc.';
+      case 'dropdown': return 'Select from predefined options - AI will match values intelligently';
+      default: return '';
     }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Field ID */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Field ID <span className="text-red-400">*</span>
+          <label className="block text-body text-primary mb-2">
+            Field ID <span className="text-error-500">*</span>
           </label>
           <input
+            ref={idInputRef}
             type="text"
-            value={field.id}
+            value={localField.id}
             onChange={(e) => handleIdChange(e.target.value)}
-            className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
-              errors.id ? 'border-red-500' : 'border-dark-300'
-            } focus:border-blue-500 focus:outline-none transition-colors font-mono text-sm`}
+            className={`input-primary font-mono text-sm ${errors.id ? 'border-error-500' : ''}`}
             placeholder="e.g., location, salary, department"
           />
           {errors.id && (
-            <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+            <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
               {errors.id}
             </p>
           )}
-          <p className="text-gray-500 text-xs mt-1">Used internally - lowercase, no spaces</p>
+          <p className="text-caption-subtle mt-1">Used internally - lowercase, no spaces</p>
         </div>
 
         {/* Field Label */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Display Label <span className="text-red-400">*</span>
+          <label className="block text-body text-primary mb-2">
+            Display Label <span className="text-error-500">*</span>
           </label>
           <input
             type="text"
-            value={field.label}
+            value={localField.label}
             onChange={(e) => updateField({ label: e.target.value })}
-            className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
-              errors.label ? 'border-red-500' : 'border-dark-300'
-            } focus:border-blue-500 focus:outline-none transition-colors`}
+            className={`input-primary ${errors.label ? 'border-error-500' : ''}`}
             placeholder="e.g., Location, Salary, Department"
           />
           {errors.label && (
-            <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+            <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
               {errors.label}
             </p>
           )}
-          <p className="text-gray-500 text-xs mt-1">Shown to users in forms and tables</p>
+          <p className="text-caption-subtle mt-1">Shown to users in forms and tables</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Field Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Field Type <span className="text-red-400">*</span>
+          <label className="block text-body text-primary mb-2">
+            Field Type <span className="text-error-500">*</span>
           </label>
           <div className="relative">
             <select
-              value={field.type}
+              value={localField.type}
               onChange={(e) => updateField({ type: e.target.value as FieldConfig['type'] })}
-              className="w-full px-3 py-2 pr-10 bg-dark-200 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
+              className="input-primary appearance-none cursor-pointer pr-10"
             >
-              <option value="text">{getFieldTypeIcon('text')} Text</option>
-              <option value="boolean">{getFieldTypeIcon('boolean')} Yes/No</option>
-              <option value="dropdown">{getFieldTypeIcon('dropdown')} Dropdown</option>
+              <option value="text">📝 Text</option>
+              <option value="boolean">☑️ Yes/No</option>
+              <option value="dropdown">📋 Dropdown</option>
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted w-4 h-4 pointer-events-none" />
           </div>
-          <p className="text-gray-500 text-xs mt-1">
-            {field.type === 'text' && 'Free text input'}
-            {field.type === 'boolean' && 'Checkbox (true/false)'}
-            {field.type === 'dropdown' && 'Select from predefined options'}
-          </p>
+          <p className="text-caption-subtle mt-1">{getFieldTypeDescription(localField.type)}</p>
         </div>
 
-        {/* Required Checkbox */}
+        {/* Required Toggle */}
         <div className="flex flex-col justify-center">
-          <div className="flex items-center gap-3 p-3 bg-dark-200 rounded-lg border border-dark-300">
+          <div className="flex items-center gap-3 p-4 bg-dark-200 border border-dark-400 rounded-lg">
             <input
               type="checkbox"
-              id={`required-${field.id}`}
-              checked={field.required}
+              id={`required-${localField.id}`}
+              checked={localField.required}
               onChange={(e) => updateField({ required: e.target.checked })}
-              className="w-4 h-4 text-blue-600 bg-dark-100 border-dark-300 rounded 
-                       focus:ring-blue-500 focus:ring-2"
+              className="w-4 h-4 text-primary-500 bg-dark-100 border-dark-300 rounded 
+                       focus:ring-primary-500 focus:ring-2"
             />
-            <label htmlFor={`required-${field.id}`} className="text-sm text-gray-300 flex-1">
+            <label htmlFor={`required-${localField.id}`} className="text-body text-primary flex-1">
               Required field
             </label>
           </div>
+          <p className="text-caption-subtle mt-1">AI will ask for missing required fields</p>
         </div>
       </div>
 
       {/* Placeholder */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-body text-primary mb-2">
           Placeholder Text
         </label>
         <input
           type="text"
-          value={field.placeholder || ''}
+          value={localField.placeholder || ''}
           onChange={(e) => updateField({ placeholder: e.target.value })}
-          className="w-full px-3 py-2 bg-dark-200 text-white rounded-lg border border-dark-300 
-                   focus:border-blue-500 focus:outline-none transition-colors"
+          className="input-primary"
           placeholder="e.g., Enter location, Select department, etc."
         />
-        <p className="text-gray-500 text-xs mt-1">Help text shown in empty form fields</p>
+        <p className="text-caption-subtle mt-1">Help text shown in empty form fields</p>
       </div>
 
       {/* Options for dropdown */}
-      {field.type === 'dropdown' && (
+      {localField.type === 'dropdown' && (
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Dropdown Options <span className="text-red-400">*</span>
+          <label className="block text-body text-primary mb-2">
+            Dropdown Options <span className="text-error-500">*</span>
           </label>
           <input
             type="text"
-            value={field.options?.join(', ') || ''}
+            value={localField.options?.join(', ') || ''}
             onChange={(e) => updateOptions(e.target.value)}
-            className={`w-full px-3 py-2 bg-dark-200 text-white rounded-lg border ${
-              errors.options ? 'border-red-500' : 'border-dark-300'
-            } focus:border-blue-500 focus:outline-none transition-colors`}
+            className={`input-primary ${errors.options ? 'border-error-500' : ''}`}
             placeholder="life science, food science, technology, healthcare"
           />
           {errors.options && (
-            <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+            <p className="text-error-500 text-caption mt-1 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
               {errors.options}
             </p>
           )}
-          <p className="text-gray-500 text-xs mt-1">Separate options with commas</p>
+          <p className="text-caption-subtle mt-1">Separate options with commas. AI will match intelligently.</p>
           
-          {field.options && field.options.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {field.options.map((option, index) => (
+          {localField.options && localField.options.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {localField.options.map((option, index) => (
                 <span
                   key={index}
-                  className="px-2 py-1 bg-blue-600/20 text-blue-300 rounded text-xs border border-blue-500/30"
+                  className="badge badge-primary"
                 >
                   {option}
                 </span>
@@ -186,18 +212,17 @@ export function FieldEditor({ field, onChange, errors = {} }: FieldEditorProps) 
 
       {/* Description for AI */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-body text-primary mb-2">
           AI Description
         </label>
         <input
           type="text"
-          value={field.description || ''}
+          value={localField.description || ''}
           onChange={(e) => updateField({ description: e.target.value })}
-          className="w-full px-3 py-2 bg-dark-200 text-white rounded-lg border border-dark-300 
-                   focus:border-blue-500 focus:outline-none transition-colors"
+          className="input-primary"
           placeholder="Help the AI understand this field better"
         />
-        <p className="text-gray-500 text-xs mt-1">Optional: Additional context for AI processing</p>
+        <p className="text-caption-subtle mt-1">Optional: Additional context for AI processing</p>
       </div>
     </div>
   );

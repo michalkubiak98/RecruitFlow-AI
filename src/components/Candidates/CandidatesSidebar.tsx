@@ -12,12 +12,6 @@ export function CandidatesSidebar() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  console.log('🎯 CandidatesSidebar render:', {
-    candidatesCount: candidates.length,
-    isLoading,
-    candidates: candidates.map((c) => ({ id: c.id, name: c.name })),
-  })
-
   const handleCandidateClick = (candidate: Candidate) => {
     setSelectedCandidate(candidate)
     setIsModalOpen(true)
@@ -36,21 +30,6 @@ export function CandidatesSidebar() {
     }
   }
 
-  const getFieldColor = (fieldId: string, value: any) => {
-    const fieldConfig = settings.fields.find(f => f.id === fieldId);
-    
-    if (fieldConfig?.type === 'dropdown') {
-      // Different colors for different dropdown values
-      switch (value) {
-        case 'life science': return 'text-blue-400';
-        case 'food science': return 'text-green-400';
-        default: return 'text-gray-400';
-      }
-    }
-    
-    return 'text-gray-400';
-  }
-
   const renderFieldValue = (fieldId: string, value: any) => {
     const fieldConfig = settings.fields.find(f => f.id === fieldId);
     
@@ -65,33 +44,33 @@ export function CandidatesSidebar() {
 
   if (isLoading) {
     return (
-      <div className="h-full flex flex-col bg-dark-200">
+      <div className="h-full flex flex-col bg-dark-100">
         <div className="p-4 border-b border-dark-300">
-          <h2 className="text-lg font-semibold text-white">{settings.entityName}</h2>
-          <p className="text-sm text-gray-400">Loading...</p>
+          <h2 className="text-heading-3">{settings.entityName}</h2>
+          <p className="text-caption-subtle">Loading...</p>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-400">Loading {settings.entityName.toLowerCase()}...</p>
+          <p className="text-muted">Loading {settings.entityName.toLowerCase()}...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col bg-dark-200">
+    <div className="h-full flex flex-col bg-dark-100">
       {/* Header */}
       <div className="p-4 border-b border-dark-300">
-        <h2 className="text-lg font-semibold text-white">{settings.entityName}</h2>
-        <p className="text-sm text-gray-400">{candidates.length} total</p>
+        <h2 className="text-heading-3">{settings.entityName}</h2>
+        <p className="text-caption-subtle">{candidates.length} total</p>
       </div>
 
-      {/* Candidates List - Scrollable */}
+      {/* Candidates List */}
       <div className="flex-1 overflow-y-auto">
         {candidates.length === 0 ? (
           <div className="text-center mt-8 p-4">
             <div className="text-3xl mb-3">👥</div>
-            <p className="text-sm text-gray-400">No {settings.entityName.toLowerCase()} yet</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-body text-muted">No {settings.entityName.toLowerCase()} yet</p>
+            <p className="text-caption-subtle mt-1">
               Add {settings.entityName.toLowerCase()} via AI chat
             </p>
           </div>
@@ -101,34 +80,34 @@ export function CandidatesSidebar() {
               <div
                 key={candidate.id}
                 onClick={() => handleCandidateClick(candidate)}
-                className="relative p-3 mb-3 bg-dark-100 rounded-lg border border-dark-300 
-                         hover:border-blue-500/50 hover:bg-dark-100/80 cursor-pointer"
+                className="relative p-3 mb-3 bg-dark-200 border border-dark-300 rounded-lg 
+                         hover:border-primary-500 hover:bg-dark-200/80 cursor-pointer transition-colors"
               >
                 {/* Name & Icons Row */}
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-white text-sm hover:text-blue-300 
-                                 truncate flex-1 pr-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-body-lg text-primary hover:text-primary-500 
+                                 truncate flex-1 pr-2 transition-colors">
                     {candidate.name}
                   </h3>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {candidate.notes && (
-                      <StickyNote className="w-3 h-3 text-yellow-400" />
+                      <StickyNote className="w-3 h-3 text-warning-500" />
                     )}
                   </div>
                 </div>
 
                 {/* Dynamic Fields Display */}
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {settings.fields.slice(0, 3).map((fieldConfig) => {
                     const value = candidate.fields[fieldConfig.id];
                     if (!value && fieldConfig.type !== 'boolean') return null;
                     
                     return (
-                      <div key={fieldConfig.id} className="flex items-center gap-1 text-xs">
-                        <span className="text-gray-500 min-w-0 truncate">
+                      <div key={fieldConfig.id} className="flex items-center gap-2 text-caption">
+                        <span className="text-muted min-w-0 truncate font-medium">
                           {fieldConfig.label}:
                         </span>
-                        <span className={`truncate ${getFieldColor(fieldConfig.id, value)}`}>
+                        <span className="truncate text-primary">
                           {renderFieldValue(fieldConfig.id, value)}
                         </span>
                       </div>
@@ -137,7 +116,7 @@ export function CandidatesSidebar() {
                   
                   {/* Show count if more fields exist */}
                   {settings.fields.length > 3 && (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-caption-subtle">
                       +{settings.fields.length - 3} more fields
                     </div>
                   )}

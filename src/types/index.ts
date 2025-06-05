@@ -1,11 +1,8 @@
 export interface Candidate {
   id: number;
   name: string;
-  location: string;
-  salary: string;
-  roles: string;
-  industry: 'life science' | 'food science' | '';
-  drives: boolean;
+  // Dynamic fields stored as key-value pairs
+  fields: Record<string, any>;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -20,7 +17,7 @@ export interface ChatMessage {
 
 export interface FilterState {
   search: string;
-  industry: 'all' | 'life science' | 'food science';
-  sortBy: 'name' | 'salary' | 'createdAt';
+  fieldFilters: Record<string, any>; // Dynamic field filters
+  sortBy: string;
   sortOrder: 'asc' | 'desc';
 }

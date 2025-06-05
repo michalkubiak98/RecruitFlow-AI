@@ -54,24 +54,23 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
             value={value}
             onChange={(e) => updateField(fieldConfig.id, e.target.value)}
             placeholder={fieldConfig.placeholder}
-            className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
-                     focus:border-blue-500 focus:outline-none placeholder-gray-500"
+            className="input-primary"
             required={fieldConfig.required}
           />
         );
 
       case 'boolean':
         return (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 p-4 bg-dark-200 border border-dark-400 rounded-lg">
             <input
               type="checkbox"
               id={fieldConfig.id}
               checked={Boolean(value)}
               onChange={(e) => updateField(fieldConfig.id, e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-dark-100 border-dark-300 rounded 
-                       focus:ring-blue-500 focus:ring-2"
+              className="w-4 h-4 text-primary-500 bg-dark-100 border-dark-300 rounded 
+                       focus:ring-primary-500 focus:ring-2"
             />
-            <label htmlFor={fieldConfig.id} className="text-sm text-gray-300">
+            <label htmlFor={fieldConfig.id} className="text-body text-primary">
               {fieldConfig.label}
             </label>
           </div>
@@ -83,8 +82,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
             <select
               value={value}
               onChange={(e) => updateField(fieldConfig.id, e.target.value)}
-              className="w-full px-3 py-2 pr-10 bg-dark-100 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none appearance-none cursor-pointer"
+              className="input-primary appearance-none cursor-pointer pr-10"
               required={fieldConfig.required}
             >
               <option value="">Select {fieldConfig.label}</option>
@@ -92,7 +90,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted w-4 h-4 pointer-events-none" />
           </div>
         );
 
@@ -104,24 +102,24 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-dark-200 rounded-lg border border-dark-300 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-dark-100 border border-dark-300 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-dark-300">
-          <h2 className="text-xl font-semibold text-white">
+          <h2 className="text-heading-2">
             {candidate?.id === 0 ? `Add ${settings.entityNameSingular}` : `Edit ${settings.entityNameSingular}`}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded"
+            className="p-2 text-muted hover:text-primary hover:bg-dark-200 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Name Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-body text-primary mb-2">
               <User className="w-4 h-4 inline mr-2" />
               Name
             </label>
@@ -129,8 +127,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none placeholder-gray-500"
+              className="input-primary"
               required
             />
           </div>
@@ -139,9 +136,9 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
           {settings.fields.map((fieldConfig) => (
             <div key={fieldConfig.id}>
               {fieldConfig.type !== 'boolean' && (
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-body text-primary mb-2">
                   {fieldConfig.label}
-                  {fieldConfig.required && <span className="text-red-400 ml-1">*</span>}
+                  {fieldConfig.required && <span className="text-error-500 ml-1">*</span>}
                 </label>
               )}
               {renderField(fieldConfig)}
@@ -150,7 +147,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-body text-primary mb-2">
               Notes
             </label>
             <textarea
@@ -158,8 +155,7 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder={`Add any notes about this ${settings.entityNameSingular.toLowerCase()}...`}
               rows={3}
-              className="w-full px-3 py-2 bg-dark-100 text-white rounded-lg border border-dark-300 
-                       focus:border-blue-500 focus:outline-none resize-none placeholder-gray-500"
+              className="input-primary resize-none"
             />
           </div>
 
@@ -167,15 +163,13 @@ export function CandidateModal({ candidate, isOpen, onClose, onSave }: Candidate
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-300 border border-dark-300 rounded-lg 
-                       hover:bg-dark-300"
+              className="button-secondary flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                       flex items-center justify-center gap-2"
+              className="button-primary flex-1 flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" />
               Save Changes

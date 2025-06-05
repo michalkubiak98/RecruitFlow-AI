@@ -13,14 +13,16 @@ export interface AppSettings {
   appName: string;
   entityName: string; // "Candidates", "Contacts", "People"
   entityNameSingular: string; // "Candidate", "Contact", "Person"
-  industryLabel: string; // "Industry", "Department", "Category"
+  openaiApiKey: string; // User's own API key
+  hasCompletedOnboarding: boolean; // Track if user has seen tutorial
 }
 
 export const DEFAULT_RECRUITMENT_TEMPLATE: AppSettings = {
   appName: "Rolodex.ai",
   entityName: "Candidates", 
   entityNameSingular: "Candidate",
-  industryLabel: "Industry",
+  openaiApiKey: "",
+  hasCompletedOnboarding: false,
   fields: [
     {
       id: 'location',
@@ -37,7 +39,7 @@ export const DEFAULT_RECRUITMENT_TEMPLATE: AppSettings = {
       placeholder: 'e.g., 50k, 60-70k'
     },
     {
-      id: 'roles',
+      id: 'role',
       label: 'Role/Position',
       type: 'text', 
       required: true,
@@ -48,10 +50,10 @@ export const DEFAULT_RECRUITMENT_TEMPLATE: AppSettings = {
       label: 'Industry',
       type: 'dropdown',
       required: false,
-      options: ['life science', 'food science']
+      options: ['life science', 'food science', 'technology', 'healthcare']
     },
     {
-      id: 'drives',
+      id: 'can_drive',
       label: 'Can Drive',
       type: 'boolean',
       required: false

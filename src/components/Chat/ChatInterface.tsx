@@ -37,9 +37,7 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, addMessage, clearChat, isLoading } = useChat()
-  const { settings } = useSettings() // Get fresh settings
-
-  console.log('🎯 ChatInterface using settings:', settings)
+  const { settings } = useSettings()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -57,6 +55,12 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isProcessing) return
+
+    // Check if API key is configured
+    if (!settings.openaiApiKey) {
+      toast.error('Please configure your OpenAI API key in Settings first')
+      return
+    }
 
     const userMessage = {
       id: uuidv4(),
@@ -123,9 +127,9 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
         return
       }
 
-      // Regular AI processing with FRESH settings
-      console.log('🚀 Starting AI parsing with FRESH settings:', settings)
-      const result = await parseNaturalLanguage(currentInput, settings)
+      // Regular AI processing with settings and message history
+      console.log('🚀 Starting AI parsing with settings:', settings)
+      const result = await parseNaturalLanguage(currentInput, settings, messages)
       console.log('📤 AI Result:', result)
 
       const systemMessage = {
@@ -185,63 +189,64 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-dark-100">
+      <div className="h-full flex items-center justify-center bg-dark-50">
         <div className="text-center">
-          <Loader className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading chat history...</p>
+          <Loader className="w-8 h-8 text-primary-500 animate-spin mx-auto mb-4" />
+          <p className="text-muted">Loading chat history...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col bg-dark-100">
+    <div className="h-full flex flex-col bg-dark-50">
       {/* Header */}
       <div className="p-6 border-b border-dark-300">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <MessageSquare className="w-8 h-8 text-blue-500" />
-            <h2 className="text-2xl font-bold text-white">AI Assistant</h2>
+            <MessageSquare className="w-8 h-8 text-primary-500" />
+            <div>
+              <h2 className="text-heading-2">AI Assistant</h2>
+              <p className="text-body-muted">
+                Add, update, delete, or search {settings.entityName.toLowerCase()} using natural language
+              </p>
+            </div>
           </div>
           <button
             onClick={clearChat}
-            className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg 
-                     hover:bg-red-700 transition-colors text-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-error-500 text-white rounded-lg 
+                     hover:bg-error-600 transition-colors text-sm font-medium"
           >
             <Trash2 className="w-4 h-4" />
             Clear Chat
           </button>
         </div>
 
-        <p className="text-gray-400 mb-4">
-          Add, update, delete, or search {settings.entityName.toLowerCase()} using natural language
-        </p>
-
         {/* Chat Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted w-4 h-4" />
           <input
             type="text"
             placeholder="Search chat history..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-dark-200 text-white rounded-lg border border-dark-300 
-                     focus:border-blue-500 focus:outline-none placeholder-gray-500 text-sm transition-colors"
+            className="w-full pl-10 pr-4 py-2 bg-dark-100 text-primary rounded-lg border border-dark-400 
+                     focus:border-primary-500 focus:outline-none placeholder-subtle text-sm transition-colors"
           />
         </div>
 
         {pendingDeletion && (
-          <div className="mt-3 p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-red-300 text-sm">
+          <div className="p-4 bg-error-500/10 border border-error-500/30 rounded-lg flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-error-500" />
+            <span className="text-error-500 text-body">
               Deletion pending - type "YES DELETE" to confirm or "no" to cancel
             </span>
           </div>
         )}
 
         {searchQuery && (
-          <div className="mt-3 p-2 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-            <span className="text-blue-300 text-sm">
+          <div className="p-3 bg-primary-500/10 border border-primary-500/30 rounded-lg">
+            <span className="text-primary-500 text-body">
               Searching for: "{searchQuery}" ({filteredMessages.length} results)
             </span>
           </div>
@@ -253,37 +258,31 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
         {filteredMessages.length === 0 && searchQuery ? (
           <div className="text-center mt-12">
             <div className="text-4xl mb-4">🔍</div>
-            <h3 className="text-lg font-semibold text-white mb-2">
-              No messages found
-            </h3>
-            <p className="text-gray-400">Try a different search term.</p>
+            <h3 className="text-heading-3 mb-2">No messages found</h3>
+            <p className="text-body-muted">Try a different search term.</p>
           </div>
         ) : filteredMessages.length === 0 ? (
           <div className="text-center mt-12">
-            <div className="max-w-md mx-auto">
-              <h3 className="text-xl font-semibold text-white mb-4">
-                👋 Welcome to {settings.appName}!
+            <div className="max-w-lg mx-auto">
+              <h3 className="text-heading-2 mb-4">
+                Welcome to {settings.appName}
               </h3>
-              <p className="text-gray-400 mb-6">
+              <p className="text-body-lg text-muted mb-8">
                 Manage and search {settings.entityName.toLowerCase()} using natural language
               </p>
-              <div className="bg-dark-200 rounded-lg p-4 text-left">
-                <p className="text-sm text-gray-300 mb-3">
-                  Try these examples:
-                </p>
-                <div className="space-y-2 text-sm text-gray-400">
-                  <div className="bg-dark-300 rounded p-2">
-                    <Search className="w-3 h-3 inline mr-2" />
+              <div className="card-primary text-left">
+                <p className="text-body text-primary mb-4">Try these examples:</p>
+                <div className="space-y-3">
+                  <div className="bg-dark-200 rounded-lg p-3 text-body text-muted">
                     "Show me Jane Doe"
                   </div>
-                  <div className="bg-dark-300 rounded p-2">
-                    <Search className="w-3 h-3 inline mr-2" />
+                  <div className="bg-dark-200 rounded-lg p-3 text-body text-muted">
                     "Find everyone from Dublin"
                   </div>
-                  <div className="bg-dark-300 rounded p-2">
+                  <div className="bg-dark-200 rounded-lg p-3 text-body text-muted">
                     "Add Mike developer Dublin 55k"
                   </div>
-                  <div className="bg-dark-300 rounded p-2">
+                  <div className="bg-dark-200 rounded-lg p-3 text-body text-muted">
                     "Update Jane's salary to 70k"
                   </div>
                 </div>
@@ -291,7 +290,7 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
             </div>
           </div>
         ) : (
-          <div className="space-y-4 max-w-4xl mx-auto">
+          <div className="space-y-6 max-w-4xl mx-auto">
             {filteredMessages.map((message) => (
               <div
                 key={message.id}
@@ -302,17 +301,19 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
                 <div
                   className={`max-w-lg px-4 py-3 rounded-lg ${
                     message.type === 'user'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-500 text-white'
                       : message.content.includes('⚠️')
-                        ? 'bg-red-900/20 border border-red-500/30 text-red-100'
+                        ? 'bg-error-500/10 border border-error-500/30 text-error-500'
                         : message.content.includes('Found') &&
                             message.content.includes(settings.entityNameSingular.toLowerCase())
-                          ? 'bg-green-900/20 border border-green-500/30 text-green-100'
-                          : 'bg-dark-200 text-gray-100 border border-dark-300'
+                          ? 'bg-success-500/10 border border-success-500/30 text-success-500'
+                          : 'bg-dark-100 text-primary border border-dark-300'
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
-                  <p className="text-xs opacity-70 mt-2">
+                  <p className="text-body">{message.content}</p>
+                  <p className={`text-caption mt-2 ${
+                    message.type === 'user' ? 'text-user-time' : 'text-caption-subtle opacity-70'
+                  }`}>
                     {new Date(message.timestamp).toLocaleTimeString()}
                   </p>
                 </div>
@@ -334,22 +335,20 @@ export function ChatInterface({ onUpdate }: ChatInterfaceProps) {
               placeholder={
                 pendingDeletion
                   ? 'Type "YES DELETE" to confirm or "no" to cancel...'
-                  : `Try: "Show me developers from Cork" or "Add John developer Dublin 50k department engineering"`
+                  : `Try: "Show me developers from Cork" or "Add John developer Dublin 50k"`
               }
-              className="flex-1 px-4 py-3 bg-dark-200 text-white rounded-lg 
-                       border border-dark-300 focus:border-blue-500 focus:outline-none
-                       placeholder-gray-500 transition-colors"
+              className="flex-1 px-4 py-3 bg-dark-100 text-primary rounded-lg border border-dark-400 
+                       focus:border-primary-500 focus:outline-none placeholder-subtle transition-colors"
               disabled={isProcessing}
             />
             <button
               type="submit"
               disabled={isProcessing || !input.trim()}
-              className={`px-6 py-3 text-white rounded-lg transition-all duration-200 flex items-center gap-2
-                       ${
-                         pendingDeletion
-                           ? 'bg-red-600 hover:bg-red-700'
-                           : 'bg-blue-600 hover:bg-blue-700'
-                       } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`px-6 py-3 text-white rounded-lg transition-colors flex items-center gap-2 font-medium ${
+                pendingDeletion
+                  ? 'bg-error-500 hover:bg-error-600'
+                  : 'bg-primary-500 hover:bg-primary-600'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isProcessing ? (
                 <Loader className="w-5 h-5 animate-spin" />
